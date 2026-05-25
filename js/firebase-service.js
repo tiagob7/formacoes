@@ -1,4 +1,4 @@
-import { initializeApp, getApps }                               from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { initializeApp, deleteApp }                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut,
          createUserWithEmailAndPassword }                        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, query, collection, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -197,18 +197,25 @@ export async function createEmployee(email, password, nome, role = 'colaborador'
   init();
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Usar segunda instância para não fazer logout do admin atual
+  // Segunda instância para criar Auth sem fazer logout do admin
   const secondaryApp  = initializeApp(firebaseConfig, 'secondary-' + Date.now());
   const secondaryAuth = getAuth(secondaryApp);
   try {
     await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, password);
     await signOut(secondaryAuth);
-  } finally {
-    await secondaryApp.delete?.();
+  } catch (err) {
+    await deleteApp(secondaryApp);
+    throw err;
   }
+  await deleteApp(secondaryApp);
 
+  // Criar documento Firestore com a instância principal
   await setDoc(doc(_db, 'employees', normalizedEmail), {
-    email: normalizedEmail, nome, role, ativo: true, criadoEm: new Date().toISOString(),
+    email: normalizedEmail,
+    nome,
+    role,
+    ativo: true,
+    criadoEm: new Date().toISOString(),
   });
 }
 
