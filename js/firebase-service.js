@@ -203,6 +203,12 @@ export async function updateEmployee(email, data) {
   await setDoc(doc(_db, 'employees', email), data, { merge: true });
 }
 
+export async function deleteEmployee(email) {
+  init();
+  const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  await deleteDoc(doc(_db, 'employees', email));
+}
+
 export async function importEmployees(list) {
   init();
   const results = { created: 0, skipped: 0 };
@@ -216,6 +222,46 @@ export async function importEmployees(list) {
     results.created++;
   }
   return results;
+}
+
+/* ------------------------------------------------------------------ */
+/* Whitelist                                                            */
+/* ------------------------------------------------------------------ */
+
+export async function getWhitelist() {
+  init();
+  if (!isConfigured()) return [];
+  const { getDocs: _getDocs, collection: _col } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const snap = await _getDocs(_col(_db, 'whitelist'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function importWhitelist(list) {
+  init();
+  const results = { created: 0, skipped: 0 };
+  for (const entry of list) {
+    const email = entry.email?.trim().toLowerCase();
+    if (!email) { results.skipped++; continue; }
+    const ref  = doc(_db, 'whitelist', email);
+    const snap = await getDoc(ref);
+    if (snap.exists()) { results.skipped++; continue; }
+    await setDoc(ref, { email, nome: entry.nome || entry.name || '', departamento: entry.departamento || entry.dept || '', registado: false, criadoEm: new Date().toISOString() });
+    results.created++;
+  }
+  return results;
+}
+
+export async function deleteWhitelistEntry(email) {
+  init();
+  const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  await deleteDoc(doc(_db, 'whitelist', email));
+}
+
+export async function isEmailInWhitelist(email) {
+  init();
+  if (!isConfigured()) return false;
+  const snap = await getDoc(doc(_db, 'whitelist', email.trim().toLowerCase()));
+  return snap.exists();
 }
 
 export async function getAllProgress(employees) {

@@ -843,8 +843,9 @@ h1,h2,h3,h4 { font-family: var(--display); letter-spacing: -0.01em; }
   color: var(--ink-3); transition: background .15s, color .15s;
 }
 .btn-icon:hover      { background: var(--line); color: var(--ink); }
-.btn-icon.warn:hover { background: var(--red-soft); color: var(--red); }
-.btn-icon.ok:hover   { background: var(--green-soft); color: var(--green); }
+.btn-icon.warn:hover   { background: var(--red-soft);   color: var(--red); }
+.btn-icon.ok:hover     { background: var(--green-soft); color: var(--green); }
+.btn-icon.danger:hover { background: var(--red-soft);   color: var(--red); }
 
 /* Modal */
 .modal-overlay {
@@ -915,3 +916,28 @@ h1,h2,h3,h4 { font-family: var(--display); letter-spacing: -0.01em; }
 .cm-module-num  { font-weight: 700; color: var(--ink-3); width: 20px; flex-shrink: 0; }
 .cm-module-name { flex: 1; }
 .cm-module-actions { display: flex; gap: 2px; }
+
+/* Table empty state */
+.table-empty {
+  text-align: center; padding: 2rem;
+  color: var(--ink-3); font-size: 14px;
+}
+
+/* Whitelist import panel */
+.wl-import-panel {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+.wl-import-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; margin-bottom: .5rem;
+}
+.wl-import-desc {
+  font-size: 13px; color: var(--ink-3); line-height: 1.6;
+  margin-bottom: 1rem;
+}
+.wl-import-desc code {
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 5px; font-size: 12px;
+}
