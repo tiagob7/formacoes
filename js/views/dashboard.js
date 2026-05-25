@@ -240,9 +240,9 @@ function renderCourseSection(title, subtitle, courses) {
       </div>
       <div class="courses-grid">
         ${courses.map(course => `
-          <article class="course-card" data-course-id="${course.id}">
+          <button type="button" class="course-card" data-course-id="${course.id}" aria-label="Abrir formação: ${course.title}">
             ${courseCard(course, courseProgress(course, getState().progress))}
-          </article>
+          </button>
         `).join('')}
       </div>
     </section>`;
@@ -262,7 +262,7 @@ function topBar(title, subtitle) {
       <div class="topbar-right">
         <div class="search-box">
           ${icon('search', 15, '#9CA3AF')}
-          <input class="search-input" placeholder="Pesquisar formações…" />
+          <input class="search-input" placeholder="Pesquisar formações…" aria-label="Pesquisar formações" />
         </div>
       </div>
     </div>`;

@@ -65,7 +65,29 @@ select:focus-visible,
 ::-webkit-scrollbar-thumb:hover { background: #A8B4C4; }
 
 /* ============================================================
-   ANIMATIONS
+   ÍNDICE DE SECÇÕES
+   ============================================================
+   1.  Variáveis & Reset          (linha   1)
+   2.  Animações                  (linha  67)
+   3.  Loading screen             (linha  88)
+   4.  Login                      (linha 105)
+   5.  App Shell (sidebar, nav)   (linha 240)
+   6.  Dashboard                  (linha 364)
+   7.  Módulo                     (linha 638)
+   8.  Quiz                       (linha 804)
+   9.  Resultados                 (linha 894)
+  10.  Notificações               (linha 993)
+  11.  Toast & Upload             (linha 1033)
+  12.  Utilitários                (linha 1082)
+  13.  Responsivo                 (linha 1158)
+  14.  Admin & Gestão de Conteúdos (linha 1328)
+       — Tabs, Toolbar, Tabelas, Modais, Whitelist,
+         Progresso, Quiz Builder, Content Builder,
+         KPI Summary, Certificados
+   ============================================================ */
+
+/* ============================================================
+   ANIMAÇÕES
    ============================================================ */
 @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeUp  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -75,7 +97,7 @@ select:focus-visible,
   60%  { transform: scale(1.2); }
   100% { transform: scale(1);   opacity: 1; }
 }
-@keyframes progressFill { from { width: 0; } }
+@keyframes progressFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -83,6 +105,15 @@ select:focus-visible,
 @keyframes shimmer {
   from { left: -100%; }
   to   { left: 160%; }
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ============================================================
@@ -1327,9 +1358,11 @@ select:focus-visible,
 
 /* ============================================================
    ADMIN & CONTENT MANAGER
+   — Tabs · Toolbar · Tabelas · Modais · Whitelist
+   — Progresso · Quiz Builder · Content Builder · KPIs
    ============================================================ */
 
-/* Tabs */
+/* --- Tabs --- */
 .admin-tabs {
   display: flex; gap: 4px;
   border-bottom: 2px solid var(--line);
@@ -1345,13 +1378,13 @@ select:focus-visible,
 .admin-tab:hover  { color: var(--ink); }
 .admin-tab.active { color: var(--cyan-2); border-bottom-color: var(--cyan-2); }
 
-/* Loading */
+/* --- Loading / Estado vazio --- */
 .admin-loading {
   display: flex; align-items: center; gap: 10px;
   padding: 3rem; color: var(--ink-3); font-size: 14px;
 }
 
-/* Toolbar */
+/* --- Toolbar --- */
 .admin-toolbar {
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 1rem;
@@ -1364,7 +1397,7 @@ select:focus-visible,
   background: var(--line); color: var(--ink-3);
 }
 
-/* Table */
+/* --- Tabelas --- */
 .admin-table-wrap {
   background: var(--white); border: 1px solid var(--line);
   border-radius: var(--radius); overflow: hidden;
@@ -1388,7 +1421,7 @@ select:focus-visible,
 .admin-table tbody tr:hover { background: var(--bg); }
 .table-actions { display: flex; gap: 4px; justify-content: flex-end; }
 
-/* Badges */
+/* --- Badges & estados --- */
 .role-badge {
   display: inline-block; padding: 2px 8px;
   border-radius: 20px; font-size: 12px; font-weight: 600;
@@ -1400,7 +1433,7 @@ select:focus-visible,
 .status-dot.active   { background: var(--green); }
 .status-dot.inactive { background: var(--ink-3); }
 
-/* Icon buttons */
+/* --- Botões ícone --- */
 .btn-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-sm);
@@ -1411,7 +1444,7 @@ select:focus-visible,
 .btn-icon.ok:hover     { background: var(--green-soft); color: var(--green); }
 .btn-icon.danger:hover { background: var(--red-soft);   color: var(--red); }
 
-/* Modal */
+/* --- Modais --- */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(15,30,60,.45);
   display: flex; align-items: center; justify-content: center;
@@ -1435,7 +1468,7 @@ select:focus-visible,
   padding: 16px 24px; border-top: 1px solid var(--line);
 }
 
-/* Import panel */
+/* --- Painel de importação --- */
 .import-panel { max-width: 680px; }
 .import-info {
   display: flex; gap: 12px; align-items: flex-start;
@@ -1451,13 +1484,13 @@ select:focus-visible,
 }
 .file-drop-zone.drag-over { border-color: var(--cyan-2); background: var(--cyan-soft); }
 
-/* Progress overview */
+/* --- Progresso global (admin) --- */
 .progress-overview { animation: fadeIn .2s ease; }
 .progress-cards {
   display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
 }
 
-/* Content manager */
+/* --- Gestor de conteúdos --- */
 .courses-manager-grid { display: flex; flex-direction: column; gap: 1rem; }
 .cm-course-card {
   background: var(--white); border: 1px solid var(--line);
@@ -1481,13 +1514,13 @@ select:focus-visible,
 .cm-module-name { flex: 1; }
 .cm-module-actions { display: flex; gap: 2px; }
 
-/* Table empty state */
+/* --- Estado vazio de tabela --- */
 .table-empty {
   text-align: center; padding: 2rem;
   color: var(--ink-3); font-size: 14px;
 }
 
-/* Whitelist import panel */
+/* --- Whitelist: painel de importação --- */
 .whitelist-layout {
   display: grid; grid-template-columns: minmax(0, 1fr) 340px;
   gap: 1.5rem; align-items: start;
@@ -1526,9 +1559,7 @@ select:focus-visible,
   }
 }
 
-/* ============================================================
-   QUIZ BUILDER (editor visual de quiz no gestor de conteúdos)
-   ============================================================ */
+/* --- Quiz Builder (editor visual de quiz) --- */
 
 .modal-body-scroll { max-height: calc(90vh - 148px); overflow-y: auto; }
 
@@ -1579,7 +1610,24 @@ select:focus-visible,
 .qb-explanation { font-size: 12px; color: var(--ink-3); margin-top: .25rem; }
 .qb-explanation::placeholder { color: var(--ink-3); opacity: .7; }
 
-/* Status badges no gestor de conteúdos */
+/* --- Content Builder (editor de blocos de conteúdo) --- */
+.content-builder { display: flex; flex-direction: column; gap: .75rem; }
+.cb-empty { font-size: 13px; color: var(--ink-3); padding: .5rem 0; }
+.cb-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--bg);
+  display: flex; flex-direction: column; gap: .5rem;
+}
+.cb-card-top { display: flex; align-items: center; gap: .5rem; }
+.cb-num { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--ink-3); min-width: 20px; }
+.cb-type-select { font-size: 13px; padding: 4px 8px; height: auto; flex: 1; max-width: 180px; }
+.cb-list-items { display: flex; flex-direction: column; margin-top: .5rem; gap: .3rem; }
+.cb-item-row { display: flex; align-items: center; gap: .5rem; }
+.cb-item-input { flex: 1; }
+
+/* --- Status badges do gestor de conteúdos --- */
 .cm-status-badge {
   font-size: 10px; font-weight: 700; letter-spacing: .06em;
   padding: 2px 7px; border-radius: 20px;
@@ -1589,6 +1637,65 @@ select:focus-visible,
 .cm-status-draft    { background: var(--amber-soft); color: var(--amber);     border-color: rgba(214,163,20,.25); }
 .cm-status-published{ background: var(--green-soft); color: var(--green);     border-color: rgba(31,157,85,.25); }
 .cm-status-archived { background: var(--line-2);     color: var(--ink-3);     border-color: var(--line); }
+
+/* --- Utilitários partilhados Admin / Gestor --- */
+
+/* Células de tabela com metadados (email, dept, data) */
+.table-cell-meta { font-size: 13px; color: var(--ink-3); }
+
+/* Nome principal em célula de tabela */
+.cell-name { font-weight: 600; font-size: 14px; }
+
+/* Metadado secundário em célula de tabela (email sob o nome) */
+.cell-meta { font-size: 12px; color: var(--ink-3); }
+
+/* Cabeçalho de secção dentro de uma aba */
+.section-title { font-size: 15px; color: var(--ink-2); font-weight: 600; margin: 0; }
+.section-title--spaced { margin: 2rem 0 1rem; font-size: 15px; color: var(--ink-2); font-weight: 600; }
+
+/* Linha de cabeçalho com título + acção à direita */
+.section-title-row {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+/* Corpo de página com padding lateral padrão */
+.admin-body { padding: 0 2rem 2rem; }
+
+/* Acesso negado / sem dados */
+.access-denied { padding: 2rem; color: var(--ink-3); }
+
+/* Grupo à direita numa toolbar (margin-left:auto + flex) */
+.toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* Grelha de 2 colunas em modais */
+.form-grid-2 {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; margin-top: 1rem;
+}
+
+/* Secção de modal com espaçamento superior */
+.form-section { margin-top: 1.5rem; }
+
+/* Hint de secção (texto pequeno abaixo de label) */
+.form-section-hint { font-size: 12px; color: var(--ink-3); margin: 0 0 .5rem; }
+
+/* Registo de auditoria (editado por / criado por) */
+.cm-audit-text {
+  font-size: 11px; color: var(--ink-3);
+  margin-top: 2px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* Célula de progresso inline (barra + percentagem) */
+.progress-cell { display: flex; align-items: center; gap: 6px; }
+.progress-bar-mini {
+  flex: 1; height: 5px;
+  background: var(--line);
+  border-radius: 3px; overflow: hidden;
+}
+.progress-bar-mini-fill { height: 100%; border-radius: 3px; }
 
 /* ============================================================
    PÁGINA DE CERTIFICADOS
@@ -1632,9 +1739,7 @@ select:focus-visible,
 
 .cert-card-btn { flex-shrink: 0; }
 
-/* ============================================================
-   KPI SUMMARY ROW (admin progresso)
-   ============================================================ */
+/* --- KPI Summary Row (admin progresso) --- */
 
 .kpi-summary-row {
   display: grid;

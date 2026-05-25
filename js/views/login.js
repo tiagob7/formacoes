@@ -63,7 +63,7 @@ export function renderLogin(container) {
           <input id="login-password" type="password" class="form-input"
             placeholder="••••••••" autocomplete="current-password" />
 
-          <div id="login-error" class="form-error" style="display:none"></div>
+          <div id="login-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
 
           <button type="submit" class="btn-primary" id="login-btn">
             Entrar
@@ -103,7 +103,7 @@ export function renderLogin(container) {
       setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid }, progress: result.progress });
       navigate('/dashboard');
     } catch (err) {
-      console.error(err);
+      console.warn('[Login] Falha:', err.code || err.message);
       const errorMsg = err.code === 'auth/invalid-credential'
         ? 'Email ou palavra-passe incorretos.'
         : 'Erro ao aceder à plataforma. Verifique a ligação e tente novamente.';

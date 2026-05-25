@@ -84,7 +84,7 @@ Objetivo: transformar a plataforma num sistema completo de aprendizagem e certif
 | [x] | P2 | Formacoes obrigatorias/opcionais | Catalogo distingue atribuicoes obrigatorias e opcionais |
 | [x] | P2 | Atribuicao por departamento/role | Admin atribui formacoes a grupos de colaboradores |
 | [x] | P2 | Catalogo geral | Separar "Atribuidas a mim" de "Catalogo disponivel" |
-| [ ] | P3 | Modo offline/cache | Leitura de conteudos ja abertos sem ligacao |
+| [>] | P3 | Modo offline/cache | Movido para Fase 7 |
 
 ### Notas
 
@@ -101,14 +101,14 @@ Objetivo: dar autonomia real a RH/gestores sem exigir edicao tecnica.
 |---|---:|---|---|
 | [x] | P0 | Editor visual de quiz | Gestor cria perguntas sem editar JSON |
 | [x] | P1 | Validacao de quiz | Nao permite guardar perguntas incompletas ou sem resposta correta |
-| [ ] | P1 | Editor de conteudo do modulo | Permitir texto estruturado alem de PDF |
+| [x] | P1 | Editor de conteudo do modulo | Editor visual de blocos (titulo, paragrafo, lista, destaque) no modal de modulo; guardado em Firestore e renderizado quando nao ha PDF |
 | [x] | P1 | Estados de publicacao | Rascunho, publicado, arquivado — dashboard filtra apenas publicados |
-| [ ] | P1 | Importacao de colaboradores com validacao | Excel/CSV mostra erros antes de importar |
+| [x] | P1 | Importacao de colaboradores com validacao | Whitelist import mostra linhas invalidas (email vazio ou mal formado) antes de confirmar |
 | [x] | P1 | Exportar relatorios CSV/Excel | Admin exporta progresso por colaborador e por formacao |
-| [~] | P1 | Dashboard admin com KPIs | Taxa de conclusao, pendentes, atrasados e medias (row de KPIs basico adicionado; falta detalhe por formacao e por colaborador) |
-| [ ] | P2 | Auditoria de alteracoes | Registar quem criou/editou cursos, modulos e utilizadores |
-| [ ] | P2 | Reordenar cursos e modulos | Drag/drop ou controlos de ordem |
-| [ ] | P2 | Gestao de departamentos | Criar departamentos e associar colaboradores |
+| [x] | P1 | Dashboard admin com KPIs | Taxa de conclusao, pendentes, atrasados e medias — KPIs globais, cards por formacao e tabela por colaborador |
+| [x] | P2 | Auditoria de alteracoes | criadoPor/editadoPor/editadoEm em cursos, modulos e utilizadores; visivel no gestor de conteudos |
+| [x] | P2 | Reordenar cursos e modulos | Botoes de subir/descer por modulo no gestor de conteudos |
+| [x] | P2 | Gestao de departamentos | Tab "Departamentos" no admin; CRUD; dropdown no modal de utilizador |
 
 ### Notas
 
@@ -123,15 +123,96 @@ Objetivo: preparar a plataforma para utilizacao interna continua.
 
 | Estado | Prioridade | Melhoria | Criterio de conclusao |
 |---|---:|---|---|
-| [ ] | P0 | Rever permissoes por role | Colaborador, gestor e administrador so acedem ao que devem |
-| [ ] | P0 | Proteger operacoes destrutivas | Confirmacoes melhores para apagar cursos, modulos e utilizadores |
-| [ ] | P1 | Testes manuais por fluxo | Checklist login, curso, quiz, admin, upload, importacao |
-| [ ] | P1 | Tratamento de dados sensiveis | Evitar expor informacao desnecessaria no frontend |
-| [ ] | P1 | Validacao de inputs | Email, percentagens, nomes, ficheiros e JSON/quiz |
-| [ ] | P2 | Estruturar CSS por secoes/componentes | Facilitar manutencao sem reescrever a UI |
-| [ ] | P2 | Reduzir estilos inline | Mover estilos repetidos para classes CSS |
-| [ ] | P2 | Documentar modelo de dados | Colecoes, documentos e campos esperados |
+| [x] | P0 | Rever permissoes por role | Router, sidebar e views validam role; colaborador nao acede a admin nem conteudos |
+| [x] | P0 | Proteger operacoes destrutivas | Modal de confirmacao com titulo, contexto e botao vermelho substitui confirm() nativo |
+| [x] | P1 | Testes manuais por fluxo | Checklist detalhada no ROADMAP (ver abaixo) — pronta para execucao manual |
+| [x] | P1 | Tratamento de dados sensiveis | Erros de login sanitizados (so expoe code, nao objeto); sessionStorage limpo no logout; passwords nunca registadas |
+| [x] | P1 | Validacao de inputs | Email (regex), nota minima (0-100), whitelist import com deteccao de linhas invalidas |
+| [x] | P2 | Estruturar CSS por secoes/componentes | Indice de seccoes no topo; cabeçalhos --- padronizados; Quiz/Content Builder e KPI integrados na seccao Admin |
+| [x] | P2 | Reduzir estilos inline | Classes utilitarias (table-cell-meta, form-grid-2, form-section, section-title, progress-cell, etc.) substituem padroes repetidos em admin.js e content-manager.js |
+| [x] | P2 | Documentar modelo de dados | MODELO_DADOS.md com colecoes, campos, quiz, content blocks e regras Firestore |
+
+---
+
+## Fase 6 - Engagement e Aprendizagem Continua
+
+> **SUSPENSA** — Retomar depois de concluir Fases 1 a 5.
+
+Objetivo: aumentar a adesao dos colaboradores e tornar a formacao um habito, nao uma obrigacao pontual.
+
+| Estado | Prioridade | Melhoria | Criterio de conclusao |
+|---|---:|---|---|
+| [ ] | P1 | Lembretes por email | Email automatico X dias antes do prazo de formacoes obrigatorias |
+| [ ] | P1 | Resumo semanal por email | Colaborador recebe resumo do progresso e pendentes |
+| [ ] | P2 | Badges e conquistas | Marcos visiveis: 1a formacao, 5 formacoes, 100% no quiz, sem atrasos |
+| [ ] | P2 | Sequencias de conclusao (streaks) | Contador de semanas/meses consecutivos com atividade |
+| [ ] | P2 | Ranking por equipa/departamento | Opcional e configuravel pelo admin; respeita cultura interna |
+| [ ] | P2 | Perguntas e comentarios por modulo | Colaborador deixa duvida; RH responde no painel admin |
+| [ ] | P2 | Avaliacao do colaborador a formacao | Estrelas e comentario livre apos concluir |
+| [ ] | P2 | Recomendacoes de formacoes | Sugerir catalogo com base em role/departamento/historico |
+| [ ] | P3 | Microaprendizagem | Modulos curtos de 5 min para revisao periodica |
+| [ ] | P3 | Lembrete de revalidacao | Formacoes com validade (ex: 12 meses) reabrem automaticamente |
+
+### Notas
+
+- Toda a gamificacao deve ser opcional por configuracao — algumas culturas internas reagem mal a rankings publicos.
+- Emails dependem de uma camada de envio (ex: Firebase Functions + SendGrid/Mailgun) que ainda nao existe.
+
+---
+
+## Fase 7 - Integracoes e Escala
+
+> **SUSPENSA** — Retomar depois de concluir Fases 1 a 5.
+
+Objetivo: encaixar a plataforma no ecossistema de TI da empresa e preparar crescimento.
+
+| Estado | Prioridade | Melhoria | Criterio de conclusao |
+|---|---:|---|---|
+| [ ] | P1 | SSO Microsoft/Google Workspace | Login corporativo substitui nome + numero |
+| [ ] | P1 | Sincronizacao de colaboradores via API/HR | Lista de colaboradores e departamentos vem do sistema de RH |
+| [ ] | P2 | Webhooks de eventos | Eventos (conclusao, certificado, atraso) enviados para sistemas externos |
+| [ ] | P2 | API publica read-only | Endpoint autenticado para extrair progresso e relatorios |
+| [ ] | P2 | Assinatura digital de leitura | Para formacoes legais — registo com timestamp e IP |
+| [ ] | P2 | Multilingua (PT/EN/ES) | Conteudos e UI traduziveis sem duplicar formacoes |
+| [ ] | P3 | Formacoes presenciais hibridas | Sessoes presenciais com checkin + componente online |
+| [ ] | P3 | App mobile (PWA instalavel) | Plataforma instalavel como app no telemovel |
+| [ ] | P3 | Integracao com calendario | Prazos sincronizados com Outlook/Google Calendar |
+| [ ] | P3 | SCORM/xAPI | Importar conteudos de autores externos em formato standard |
 | [ ] | P3 | Criar ambiente staging | Testar mudancas sem afetar producao |
+| [ ] | P3 | Modo offline/cache | Leitura de conteudos ja abertos sem ligacao (Service Worker) |
+
+### Notas
+
+- SSO deve coexistir com login por numero — nem todos os colaboradores tem conta corporativa.
+- API/Webhooks exigem rotacao de chaves e auditoria; nao avancar sem Fase 5 concluida.
+
+---
+
+## Metricas de Sucesso
+
+Indicadores a monitorizar para validar se as melhorias estao a produzir efeito real.
+
+| Metrica | Objetivo | Como medir |
+|---|---|---|
+| Taxa de conclusao de formacoes obrigatorias | > 90% dentro do prazo | Relatorio admin |
+| Tempo medio entre atribuicao e conclusao | < 14 dias | Diferenca entre data de atribuicao e ultima atividade |
+| Taxa de aprovacao a primeira tentativa | > 70% | `attempts` no progresso do modulo |
+| Adesao a formacoes opcionais | > 30% dos colaboradores ativos/mes | Inscricoes no catalogo |
+| NPS interno da plataforma | > 30 | Inquerito trimestral |
+| Tickets de suporte sobre a plataforma | Tendencia decrescente | Registo manual ou via Helpdesk |
+
+---
+
+## Riscos e Mitigacoes
+
+| Risco | Impacto | Mitigacao |
+|---|---|---|
+| Firestore atinge limites do plano gratuito | Plataforma fica indisponivel | Monitorizar quotas; preparar upgrade para Blaze antes de saturar |
+| Conteudo desatualizado em formacoes legais | Risco regulatorio | Lembrete de revalidacao (Fase 6) e responsavel por formacao |
+| Adocao baixa pelos colaboradores | Investimento sem retorno | Fase 6 (engagement), comunicacao interna e patrocinio de gestao |
+| Dependencia de uma so pessoa para conteudos | Bottleneck | Multiplos gestores de conteudo + auditoria (Fase 4) |
+| Dados sensiveis expostos no frontend | Risco RGPD | Fase 5 — rever permissoes por role e tratamento de dados |
+| Browser sem suporte a ES Modules ou Firebase v10 | Utilizadores ficam de fora | Documentar requisitos minimos e detetar/avisar no login |
 
 ---
 
@@ -164,42 +245,65 @@ Objetivo: preparar a plataforma para utilizacao interna continua.
 
 ## Checklist de Teste Manual
 
+> Marcar com [x] apos testar. Repetir apos cada deploy relevante.
+> Ultimo teste: por realizar
+
 ### Colaborador
 
-- [ ] Login com credenciais validas.
-- [ ] Login com credenciais invalidas.
-- [ ] Ver dashboard com formacoes atribuidas.
-- [ ] Pesquisar e filtrar formacoes.
-- [ ] Abrir formacao.
-- [ ] Ler modulo.
-- [ ] Marcar modulo como lido.
-- [ ] Fazer quiz.
-- [ ] Ver resultados.
-- [ ] Repetir quiz apos reprovar.
+- [ ] Login com credenciais validas — sessao fica guardada apos refresh.
+- [ ] Login com credenciais invalidas — mensagem de erro sem expor detalhes.
+- [ ] Login com conta desativada — mensagem clara.
+- [ ] Ver dashboard com formacoes atribuidas ao seu role/departamento.
+- [ ] Banner "continuar onde parou" aparece quando ha formacao em curso.
+- [ ] Pesquisar formacoes por titulo.
+- [ ] Filtrar por categoria e estado.
+- [ ] Abrir pagina de detalhe de formacao.
+- [ ] Navegar para modulo a partir do detalhe.
+- [ ] Ler conteudo do modulo (bloco de texto ou PDF).
+- [ ] Marcar modulo como lido — botao de quiz desbloqueia.
+- [ ] Tentar aceder ao quiz antes de marcar como lido — bloqueado.
+- [ ] Fazer quiz e submeter respostas.
+- [ ] Ver revisao e feedback por pergunta.
+- [ ] Reprovar e repetir quiz — contagem de tentativas sobe.
+- [ ] Aprovar quiz — modulo marcado como concluido.
 - [ ] Continuar para modulo seguinte.
-- [ ] Concluir formacao.
-- [ ] Descarregar certificado.
+- [ ] Concluir todos os modulos — formacao marcada como concluida.
+- [ ] Ver certificado gerado e descarregar PDF.
+- [ ] Tentar navegar para /admin — redirecionado para dashboard.
+- [ ] Logout — sessao apagada, redireciona para login.
 
 ### Gestor de Conteudos
 
-- [ ] Criar formacao.
-- [ ] Editar formacao.
-- [ ] Criar modulo.
-- [ ] Editar modulo.
-- [ ] Criar quiz visual.
-- [ ] Carregar PDF.
-- [ ] Publicar formacao.
-- [ ] Arquivar formacao.
+- [ ] Criar formacao — aparece na lista como rascunho.
+- [ ] Editar titulo, categoria, nota minima e data limite.
+- [ ] Adicionar bloco de conteudo (titulo, paragrafo, lista, destaque).
+- [ ] Reordenar blocos de conteudo com setas.
+- [ ] Criar quiz com pergunta de multipla escolha.
+- [ ] Criar quiz com pergunta verdadeiro/falso.
+- [ ] Guardar quiz — validacao impede perguntas incompletas.
+- [ ] Carregar PDF num modulo.
+- [ ] Publicar formacao — aparece no dashboard dos colaboradores.
+- [ ] Arquivar formacao — desaparece do dashboard.
+- [ ] Reordenar modulos com setas.
+- [ ] Eliminar modulo — modal de confirmacao aparece.
+- [ ] Eliminar formacao — modal de confirmacao aparece.
+- [ ] Tentar aceder a /admin — redirecionado para dashboard.
 
 ### Administrador
 
-- [ ] Criar utilizador.
-- [ ] Editar utilizador.
-- [ ] Desativar/ativar utilizador.
-- [ ] Importar whitelist.
-- [ ] Ver progresso global.
-- [ ] Exportar relatorio.
-- [ ] Confirmar que colaboradores nao acedem a admin.
+- [ ] Criar utilizador com email, palavra-passe e role.
+- [ ] Email invalido — erro de validacao antes de submeter.
+- [ ] Editar nome, role e departamento de utilizador existente.
+- [ ] Desativar utilizador — nao consegue fazer login.
+- [ ] Reativar utilizador.
+- [ ] Eliminar utilizador — modal de confirmacao aparece.
+- [ ] Importar whitelist via Excel — linhas invalidas mostradas antes de confirmar.
+- [ ] Confirmar importacao — novas entradas adicionadas.
+- [ ] Criar departamento — aparece na lista e no dropdown de utilizadores.
+- [ ] Eliminar departamento — modal de confirmacao aparece.
+- [ ] Ver KPIs globais de progresso.
+- [ ] Ver detalhe por formacao e por colaborador.
+- [ ] Exportar relatorio CSV — ficheiro descarregado com dados corretos.
 
 ### Responsividade
 

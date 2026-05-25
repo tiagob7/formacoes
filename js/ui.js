@@ -59,7 +59,7 @@ export function renderShell(activeView) {
           <div class="user-name">${user?.name || ''}</div>
           <div class="user-meta">${roleLabel}</div>
         </div>
-        <button class="logout-btn" id="logout-btn" title="Terminar sessão">
+        <button class="logout-btn" id="logout-btn" title="Terminar sessão" aria-label="Terminar sessão">
           ${icon('logout', 16)}
         </button>
       </div>
@@ -91,6 +91,8 @@ export function showToast(message, type = 'info') {
   const toast    = document.createElement('div');
   toast.id        = 'app-toast';
   toast.className = `toast ${type}`;
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
   toast.innerHTML = `${icon(iconName, 16)} ${message}`;
   document.body.appendChild(toast);
 
@@ -178,6 +180,38 @@ export function wireShell() {
       navigate('/login');
     });
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Confirmation dialog (replaces browser confirm())                    */
+/* ------------------------------------------------------------------ */
+export function confirmDialog({ title, message, confirmLabel = 'Confirmar', danger = false }) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const btnStyle = danger ? 'background:var(--red,#c0392b);border-color:var(--red,#c0392b);color:#fff' : '';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+          <h3>${title}</h3>
+        </div>
+        <div class="modal-body">
+          <p style="margin:0;color:var(--ink-2);line-height:1.6">${message}</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" id="cd-cancel">Cancelar</button>
+          <button class="btn-primary" id="cd-confirm" style="${btnStyle}">${confirmLabel}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = result => { overlay.remove(); resolve(result); };
+    overlay.querySelector('#cd-cancel').addEventListener('click', () => close(false));
+    overlay.querySelector('#cd-confirm').addEventListener('click', () => close(true));
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+    const onKey = e => { if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); close(false); } };
+    document.addEventListener('keydown', onKey);
+    overlay.querySelector('#cd-confirm').focus();
+  });
 }
 
 /* Expose navigate globally so inline onclick handlers in HTML strings work */

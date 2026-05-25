@@ -1,11 +1,16 @@
 import { icon }      from '../icons.js';
 import { getState }  from '../state.js';
-import { showToast } from '../ui.js';
+import { showToast, confirmDialog } from '../ui.js';
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 import { loadCourses } from '../course-service.js';
 import {
   getEmployees, createEmployee, updateEmployee, deleteEmployee,
   importWhitelist, getWhitelist, deleteWhitelistEntry,
   getAllProgress,
+  getDepartments, saveDepartment, deleteDepartment,
 } from '../firebase-service.js';
 
 const ROLES = { administrador: 'Administrador', gestor_conteudos: 'Gestor de conteúdos', colaborador: 'Colaborador' };
@@ -14,7 +19,7 @@ const ROLE_COLOR = { administrador: 'var(--red)', gestor_conteudos: 'var(--amber
 export async function renderAdmin(container) {
   const { user } = getState();
   if (user?.role !== 'administrador') {
-    container.innerHTML = '<p style="padding:2rem">Acesso negado.</p>'; return;
+    container.innerHTML = '<p class="access-denied">Acesso negado.</p>'; return;
   }
 
   container.innerHTML = `
@@ -24,10 +29,11 @@ export async function renderAdmin(container) {
         <div class="topbar-sub">Gestão de utilizadores, whitelist e monitorização</div>
       </div>
     </div>
-    <div style="padding:0 2rem 2rem">
+    <div class="admin-body">
       <div class="admin-tabs">
         <button class="admin-tab active" data-tab="users">${icon('user',15)} Utilizadores</button>
         <button class="admin-tab" data-tab="whitelist">${icon('check',15)} Whitelist</button>
+        <button class="admin-tab" data-tab="departments">${icon('grid',15)} Departamentos</button>
         <button class="admin-tab" data-tab="progress">${icon('chart',15)} Progresso Global</button>
       </div>
       <div id="admin-content"></div>
@@ -47,9 +53,10 @@ export async function renderAdmin(container) {
 function loadTab(tab) {
   const content = document.getElementById('admin-content');
   content.innerHTML = `<div class="admin-loading">${icon('spinner',18)} A carregar...</div>`;
-  if (tab === 'users')    renderUsers(content);
-  if (tab === 'whitelist') renderWhitelist(content);
-  if (tab === 'progress') renderProgress(content);
+  if (tab === 'users')       renderUsers(content);
+  if (tab === 'whitelist')   renderWhitelist(content);
+  if (tab === 'departments') renderDepartments(content);
+  if (tab === 'progress')    renderProgress(content);
 }
 
 /* ================================================================== */
@@ -65,7 +72,7 @@ async function renderUsers(container) {
     <div class="admin-toolbar">
       <input id="search-users" class="form-input" style="max-width:260px"
              placeholder="Pesquisar por nome ou email…" />
-      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <div class="toolbar-right">
         <span class="admin-count-badge">${employees.length} utilizadores</span>
         <button class="btn-primary" id="btn-new-user">${icon('plus',14)} Novo utilizador</button>
       </div>
@@ -105,8 +112,8 @@ function renderUsersRows(list, all) {
   tbody.innerHTML = list.map(emp => `
     <tr>
       <td><strong>${emp.nome || '—'}</strong></td>
-      <td style="color:var(--ink-3);font-size:13px">${emp.id}</td>
-      <td style="color:var(--ink-3);font-size:13px">${emp.departamento || '—'}</td>
+      <td class="table-cell-meta">${emp.id}</td>
+      <td class="table-cell-meta">${emp.departamento || '—'}</td>
       <td>
         <span class="role-badge"
               style="background:${ROLE_COLOR[emp.role]}18;color:${ROLE_COLOR[emp.role]};border:1px solid ${ROLE_COLOR[emp.role]}30">
@@ -147,7 +154,13 @@ async function toggleUser(email, ativo) {
 }
 
 async function confirmDeleteUser(email) {
-  if (!confirm(`Eliminar permanentemente o utilizador "${email}"?\nEsta ação não pode ser desfeita.`)) return;
+  const ok = await confirmDialog({
+    title: 'Eliminar utilizador',
+    message: `Tem a certeza que pretende eliminar permanentemente o utilizador <strong>${email}</strong>?<br>Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await deleteEmployee(email);
     showToast('Utilizador eliminado.', 'success');
@@ -155,8 +168,21 @@ async function confirmDeleteUser(email) {
   } catch (e) { showToast('Erro ao eliminar: ' + e.message, 'error'); }
 }
 
-function openUserModal(emp, all) {
+async function openUserModal(emp, all) {
   const isEdit = !!emp;
+  let departments = [];
+  try { departments = await getDepartments(); } catch { /* sem deps → campo texto */ }
+
+  const deptOptions = departments.length
+    ? `<select id="u-departamento" class="form-input">
+         <option value="">— Sem departamento —</option>
+         ${departments.map(d => `<option value="${escHtml(d.nome)}" ${emp?.departamento === d.nome ? 'selected' : ''}>${escHtml(d.nome)}</option>`).join('')}
+         <option value="__outro__">Outro…</option>
+       </select>
+       <input id="u-departamento-outro" class="form-input" placeholder="Escreva o departamento"
+              style="margin-top:.5rem;display:none" />`
+    : `<input id="u-departamento" class="form-input" value="${escHtml(emp?.departamento || '')}" placeholder="ex.: RH" />`;
+
   const overlay = createOverlay(`
     <div class="modal">
       <div class="modal-header">
@@ -165,14 +191,14 @@ function openUserModal(emp, all) {
       </div>
       <div class="modal-body">
         <label class="form-label">Nome completo</label>
-        <input id="u-nome"  class="form-input" value="${emp?.nome || ''}" placeholder="ex.: Maria Silva" />
+        <input id="u-nome"  class="form-input" value="${escHtml(emp?.nome || '')}" placeholder="ex.: Maria Silva" />
 
         <label class="form-label" style="margin-top:1rem">Email</label>
         <input id="u-email" class="form-input" type="email" value="${emp?.id || ''}"
                placeholder="email@empresa.pt" ${isEdit ? 'disabled style="opacity:.6"' : ''} />
 
         <label class="form-label" style="margin-top:1rem">Departamento</label>
-        <input id="u-departamento" class="form-input" value="${emp?.departamento || ''}" placeholder="ex.: RH" />
+        ${deptOptions}
 
         ${!isEdit ? `
         <label class="form-label" style="margin-top:1rem">Palavra-passe</label>
@@ -204,17 +230,34 @@ function openUserModal(emp, all) {
       </div>
     </div>`);
 
+  // Toggle campo "Outro" no select de departamento
+  const deptSelect = document.getElementById('u-departamento');
+  const deptOutro  = document.getElementById('u-departamento-outro');
+  if (deptSelect?.tagName === 'SELECT') {
+    deptSelect.addEventListener('change', () => {
+      if (deptOutro) deptOutro.style.display = deptSelect.value === '__outro__' ? 'block' : 'none';
+    });
+  }
+
   document.getElementById('modal-save').addEventListener('click', async () => {
     const nome     = document.getElementById('u-nome').value.trim();
     const email    = (document.getElementById('u-email').value || emp?.id || '').trim().toLowerCase();
-    const departamento = document.getElementById('u-departamento').value.trim();
+    const dSel     = document.getElementById('u-departamento');
+    const dOutro   = document.getElementById('u-departamento-outro');
+    const departamento = dSel?.tagName === 'SELECT'
+      ? (dSel.value === '__outro__' ? (dOutro?.value.trim() || '') : dSel.value)
+      : (dSel?.value.trim() || '');
     const password = !isEdit ? document.getElementById('u-password').value : null;
     const role     = document.getElementById('u-role').value;
     const ativo    = isEdit ? document.getElementById('u-ativo').value === 'true' : true;
     const errEl    = document.getElementById('u-error');
 
-    if (!nome || !email) {
-      errEl.textContent = 'Preencha nome e email.'; errEl.style.display = 'block'; return;
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!nome) {
+      errEl.textContent = 'Preencha o nome completo.'; errEl.style.display = 'block'; return;
+    }
+    if (!email || !emailRe.test(email)) {
+      errEl.textContent = 'Introduza um email válido.'; errEl.style.display = 'block'; return;
     }
     if (!isEdit && !password) {
       errEl.textContent = 'Defina uma palavra-passe.'; errEl.style.display = 'block'; return;
@@ -228,11 +271,12 @@ function openUserModal(emp, all) {
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
+    const { user: adminUser } = getState();
     try {
       if (isEdit) {
-        await updateEmployee(email, { nome, role, departamento, ativo });
+        await updateEmployee(email, { nome, role, departamento, ativo }, adminUser?.email || '');
       } else {
-        await createEmployee(email, password, nome, role, departamento);
+        await createEmployee(email, password, nome, role, departamento, adminUser?.email || '');
       }
       showToast(`Utilizador ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();
@@ -324,8 +368,8 @@ function renderWhitelistRows(filtered, all) {
   tbody.innerHTML = filtered.map(entry => `
     <tr>
       <td><strong>${entry.nome || '—'}</strong></td>
-      <td style="font-size:13px;color:var(--ink-3)">${entry.id}</td>
-      <td style="font-size:13px;color:var(--ink-3)">${entry.departamento || '—'}</td>
+      <td class="table-cell-meta">${entry.id}</td>
+      <td class="table-cell-meta">${entry.departamento || '—'}</td>
       <td>
         ${entry.registado
           ? `<span style="color:var(--green);font-size:13px">${icon('check',13,'var(--green)')} Registado</span>`
@@ -338,7 +382,13 @@ function renderWhitelistRows(filtered, all) {
 
   tbody.querySelectorAll('[data-act="del-wl"]').forEach(btn =>
     btn.addEventListener('click', async () => {
-      if (!confirm(`Remover "${btn.dataset.id}" da whitelist?`)) return;
+      const ok = await confirmDialog({
+        title: 'Remover da whitelist',
+        message: `Remover <strong>${btn.dataset.id}</strong> da whitelist?`,
+        confirmLabel: 'Remover',
+        danger: true,
+      });
+      if (!ok) return;
       try {
         await deleteWhitelistEntry(btn.dataset.id);
         showToast('Entrada removida.', 'success');
@@ -356,20 +406,37 @@ function setupWhitelistImport(existingList) {
     const reader = new FileReader();
     reader.onload = ev => {
       try {
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
         const wb   = XLSX.read(ev.target.result, { type: 'array' });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-        parsed = rows.map(r => ({
+        const allRows = rows.map((r, i) => ({
+          linha: i + 2,
           email:       (r.email || r.Email || r.EMAIL || '').trim().toLowerCase(),
-          nome:        r.nome || r.Nome || r.name || r.Name || '',
-          departamento: r.departamento || r.Departamento || r.dept || '',
-        })).filter(r => r.email);
+          nome:        (r.nome || r.Nome || r.name || r.Name || '').trim(),
+          departamento: (r.departamento || r.Departamento || r.dept || '').trim(),
+        }));
+
+        const invalid = allRows.filter(r => !r.email || !emailRe.test(r.email));
+        parsed = allRows.filter(r => r.email && emailRe.test(r.email));
 
         const newCount  = parsed.filter(r => !existingList.find(e => e.id === r.email)).length;
         const skipCount = parsed.length - newCount;
+
+        const invalidHtml = invalid.length
+          ? `<div style="margin-top:.5rem;font-size:12px;color:var(--red,#c0392b)">
+               ${icon('x',12,'var(--red,#c0392b)')} ${invalid.length} linha(s) ignorada(s) por email inválido ou em falta:
+               <ul style="margin:.25rem 0 0 1rem;padding:0">
+                 ${invalid.slice(0, 5).map(r => `<li>Linha ${r.linha}: "${r.email || '(vazio)'}"</li>`).join('')}
+                 ${invalid.length > 5 ? `<li>… e mais ${invalid.length - 5}</li>` : ''}
+               </ul>
+             </div>`
+          : '';
+
         document.getElementById('wl-preview-info').innerHTML =
-          `<strong>${parsed.length}</strong> linhas lidas &nbsp;·&nbsp;
+          `<strong>${parsed.length}</strong> linhas válidas &nbsp;·&nbsp;
            <strong style="color:var(--green)">${newCount}</strong> novas &nbsp;·&nbsp;
-           <strong style="color:var(--ink-3)">${skipCount}</strong> já existentes`;
+           <strong style="color:var(--ink-3)">${skipCount}</strong> já existentes
+           ${invalidHtml}`;
         document.getElementById('wl-preview').style.display = 'block';
       } catch { showToast('Erro ao ler o ficheiro.', 'error'); }
     };
@@ -417,7 +484,7 @@ async function renderProgress(container) {
   } catch (e) { console.warn(e); }
 
   if (!allProgress.length) {
-    container.innerHTML = `<p style="padding:2rem;color:var(--ink-3)">Sem dados de progresso.</p>`;
+    container.innerHTML = `<p class="access-denied">Sem dados de progresso.</p>`;
     return;
   }
 
@@ -461,12 +528,12 @@ async function renderProgress(container) {
       </div>
     </div>
 
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-      <h3 style="font-size:15px;color:var(--ink-2)">Resumo por formação</h3>
+    <div class="section-title-row">
+      <h3 class="section-title">Resumo por formação</h3>
       <button class="btn-sm primary" id="btn-export-csv">${icon('download',13)} Exportar CSV</button>
     </div>
     <div class="progress-cards" id="progress-cards"></div>
-    <h3 style="margin:2rem 0 1rem;font-size:15px;color:var(--ink-2)">Detalhe por colaborador</h3>
+    <h3 class="section-title--spaced">Detalhe por colaborador</h3>
     <div class="admin-table-wrap">
       <table class="admin-table">
         <thead><tr>
@@ -542,24 +609,129 @@ async function renderProgress(container) {
         const pct   = tot ? Math.round((done / tot) * 100) : 0;
         const color = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--amber)' : 'var(--line)';
         return `<td>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="flex:1;height:5px;background:var(--line);border-radius:3px;overflow:hidden">
-              <div style="width:${pct}%;height:100%;background:${color}"></div>
+          <div class="progress-cell">
+            <div class="progress-bar-mini">
+              <div class="progress-bar-mini-fill" style="width:${pct}%;background:${color}"></div>
             </div>
-            <span style="font-size:12px;color:var(--ink-3);width:28px;text-align:right">${pct}%</span>
+            <span class="cell-meta" style="width:28px;text-align:right">${pct}%</span>
           </div>
         </td>`;
       }).join('');
       const global = totalMods ? Math.round((totalDone / totalMods) * 100) : 0;
       return `<tr>
         <td>
-          <div style="font-weight:600;font-size:14px">${nome || email}</div>
-          <div style="font-size:12px;color:var(--ink-3)">${email}</div>
+          <div class="cell-name">${nome || email}</div>
+          <div class="cell-meta">${email}</div>
         </td>
         ${cols}
         <td><strong>${global}%</strong></td>
       </tr>`;
     }).join('');
+}
+
+/* ================================================================== */
+/* TAB: DEPARTAMENTOS                                                   */
+/* ================================================================== */
+
+async function renderDepartments(container) {
+  let deps = [];
+  try { deps = await getDepartments(); } catch (e) { console.warn(e); }
+
+  const { user } = getState();
+
+  container.innerHTML = `
+    <div class="admin-toolbar">
+      <span class="admin-count-badge">${deps.length} departamento(s)</span>
+      <button class="btn-primary" id="btn-new-dept" style="margin-left:auto">
+        ${icon('plus',14)} Novo departamento
+      </button>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr>
+          <th>Nome</th><th>Criado por</th><th>Data</th><th></th>
+        </tr></thead>
+        <tbody id="dept-tbody"></tbody>
+      </table>
+    </div>`;
+
+  renderDeptRows(deps);
+
+  document.getElementById('btn-new-dept').addEventListener('click', () => openDeptModal());
+
+  function renderDeptRows(list) {
+    const tbody = document.getElementById('dept-tbody');
+    if (!tbody) return;
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="table-empty">Nenhum departamento criado ainda.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(d => `
+      <tr>
+        <td><strong>${escHtml(d.nome)}</strong></td>
+        <td class="table-cell-meta">${escHtml(d.criadoPor || '—')}</td>
+        <td class="table-cell-meta">${d.criadoEm ? new Date(d.criadoEm).toLocaleDateString('pt-PT') : '—'}</td>
+        <td class="table-actions">
+          <button class="btn-icon danger" data-act="del-dept" data-id="${escHtml(d.id)}" data-nome="${escHtml(d.nome)}"
+                  title="Eliminar" aria-label="Eliminar departamento">${icon('trash',14)}</button>
+        </td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('[data-act="del-dept"]').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const ok = await confirmDialog({
+          title: 'Eliminar departamento',
+          message: `Eliminar o departamento <strong>${escHtml(btn.dataset.nome)}</strong>?<br>Os utilizadores com este departamento não serão afetados.`,
+          confirmLabel: 'Eliminar',
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          await deleteDepartment(btn.dataset.id);
+          showToast('Departamento eliminado.', 'success');
+          loadTab('departments');
+        } catch { showToast('Erro ao eliminar.', 'error'); }
+      })
+    );
+  }
+
+  function openDeptModal() {
+    const ov = createOverlay(`
+      <div class="modal" style="max-width:380px">
+        <div class="modal-header">
+          <h3>Novo departamento</h3>
+          <button class="btn-icon" id="modal-close" aria-label="Fechar">${icon('x',16)}</button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label">Nome do departamento</label>
+          <input id="dept-nome" class="form-input" placeholder="ex.: Recursos Humanos" />
+          <div id="dept-error" class="form-error" style="display:none;margin-top:.75rem"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" id="modal-cancel">Cancelar</button>
+          <button class="btn-primary" id="modal-save">${icon('check',14)} Criar</button>
+        </div>
+      </div>`);
+
+    ov.querySelector('#modal-save').addEventListener('click', async () => {
+      const nome  = document.getElementById('dept-nome').value.trim();
+      const errEl = document.getElementById('dept-error');
+      if (!nome) { errEl.textContent = 'Escreva o nome do departamento.'; errEl.style.display = 'block'; return; }
+      if (deps.find(d => d.nome.toLowerCase() === nome.toLowerCase())) {
+        errEl.textContent = 'Este departamento já existe.'; errEl.style.display = 'block'; return;
+      }
+      const btn = ov.querySelector('#modal-save');
+      btn.disabled = true;
+      try {
+        await saveDepartment(nome, user?.email || '');
+        showToast('Departamento criado.', 'success');
+        ov.remove();
+        loadTab('departments');
+      } catch (e) {
+        errEl.textContent = 'Erro: ' + e.message; errEl.style.display = 'block'; btn.disabled = false;
+      }
+    });
+  }
 }
 
 /* ================================================================== */

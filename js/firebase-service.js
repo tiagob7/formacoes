@@ -193,7 +193,7 @@ export async function getEmployees() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function createEmployee(email, password, nome, role = 'colaborador', departamento = '') {
+export async function createEmployee(email, password, nome, role = 'colaborador', departamento = '', criadoPor = '') {
   init();
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -217,12 +217,15 @@ export async function createEmployee(email, password, nome, role = 'colaborador'
     departamento,
     ativo: true,
     criadoEm: new Date().toISOString(),
+    criadoPor,
   });
 }
 
-export async function updateEmployee(email, data) {
+export async function updateEmployee(email, data, editadoPor = '') {
   init();
-  await setDoc(doc(_db, 'employees', email), data, { merge: true });
+  const payload = { ...data };
+  if (editadoPor) { payload.editadoPor = editadoPor; payload.editadoEm = new Date().toISOString(); }
+  await setDoc(doc(_db, 'employees', email), payload, { merge: true });
 }
 
 export async function deleteEmployee(email) {
@@ -335,6 +338,40 @@ export async function deleteModuleFromDB(courseId, moduleId) {
   init();
   const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
   await deleteDoc(doc(_db, 'courses', courseId, 'modules', moduleId));
+}
+
+/* ------------------------------------------------------------------ */
+/* Departments                                                          */
+/* ------------------------------------------------------------------ */
+
+export async function getDepartments() {
+  init();
+  if (!isConfigured()) return [];
+  const { getDocs: _getDocs, collection: _col } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const snap = await _getDocs(_col(_db, 'departments'));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+}
+
+export async function saveDepartment(nome, criadoPor = '') {
+  init();
+  const id = nome.trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 40);
+  if (!id) throw new Error('Nome inválido.');
+  await setDoc(doc(_db, 'departments', id), {
+    nome: nome.trim(),
+    criadoPor,
+    criadoEm: new Date().toISOString(),
+  });
+  return id;
+}
+
+export async function deleteDepartment(id) {
+  init();
+  const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  await deleteDoc(doc(_db, 'departments', id));
 }
 
 /* ------------------------------------------------------------------ */

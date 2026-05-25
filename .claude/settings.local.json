@@ -13,7 +13,10 @@
       "Bash(git pull *)",
       "Bash(git add *)",
       "Bash(git commit -m 'Implement email/password authentication with role-based access control *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Skill(impeccable:impeccable)",
+      "Skill(impeccable:impeccable:*)",
+      "Bash(node .claude/skills/impeccable/scripts/load-context.mjs)"
     ]
   }
 }
