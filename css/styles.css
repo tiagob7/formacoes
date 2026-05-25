@@ -1448,12 +1448,12 @@ select:focus-visible,
   transition: background .15s, color .15s; cursor: pointer;
 }
 .btn-icon:hover      { background: var(--line); color: var(--ink); }
-.btn-icon.warn       { color: var(--amber); }
-.btn-icon.warn:hover { background: var(--amber-soft); color: var(--amber); }
-.btn-icon.ok        { color: var(--green); }
-.btn-icon.ok:hover  { background: var(--green-soft); color: var(--green); }
-.btn-icon.danger    { color: var(--red); }
-.btn-icon.danger:hover { background: var(--red-soft); color: var(--red); }
+.btn-icon.warn       { color: var(--amber); background: var(--amber-soft); }
+.btn-icon.warn:hover { background: var(--amber); color: white; }
+.btn-icon.ok        { color: var(--green); background: var(--green-soft); }
+.btn-icon.ok:hover  { background: var(--green); color: white; }
+.btn-icon.danger    { color: var(--red); background: var(--red-soft); }
+.btn-icon.danger:hover { background: var(--red); color: white; }
 
 /* --- Modais --- */
 .modal-overlay {
