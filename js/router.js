@@ -9,6 +9,7 @@
  *   #/quiz/:courseId/:moduleId
  *   #/results/:courseId/:moduleId
  *   #/certificates
+ *   #/notifications
  *   #/admin
  *   #/conteudos
  */

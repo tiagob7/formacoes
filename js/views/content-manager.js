@@ -166,6 +166,30 @@ function openCourseModal(course) {
           </div>
         </div>
 
+        <label class="form-label" style="margin-top:1rem">Data limite</label>
+        <input id="c-due-date" class="form-input" type="date" value="${course?.dueDate || ''}" />
+
+        <label class="form-label" style="margin-top:1rem">Tipo de atribuiÃ§Ã£o</label>
+        <select id="c-required" class="form-input">
+          <option value="false" ${course?.isRequired ? '' : 'selected'}>Opcional</option>
+          <option value="true" ${course?.isRequired ? 'selected' : ''}>ObrigatÃ³ria</option>
+        </select>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+          <div>
+            <label class="form-label">Roles alvo</label>
+            <select id="c-target-roles" class="form-input" multiple size="3">
+              ${Object.entries({ colaborador: 'Colaborador', gestor_conteudos: 'Gestor de conteudos', administrador: 'Administrador' }).map(([value, label]) =>
+                `<option value="${value}" ${(course?.targetRoles || []).includes(value) ? 'selected' : ''}>${label}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Departamentos alvo</label>
+            <input id="c-target-departments" class="form-input" value="${escHtml((course?.targetDepartments || []).join(', '))}" placeholder="ex.: RH, Operacoes" />
+          </div>
+        </div>
+
         <div id="c-error" class="form-error" style="display:none;margin-top:.5rem"></div>
       </div>
       <div class="modal-footer">
@@ -180,13 +204,17 @@ function openCourseModal(course) {
     const duration = document.getElementById('c-duration').value.trim();
     const category = document.getElementById('c-category').value.trim();
     const passing  = parseInt(document.getElementById('c-passing').value) || 60;
+    const dueDate  = document.getElementById('c-due-date').value || '';
+    const isRequired = document.getElementById('c-required').value === 'true';
+    const targetRoles = Array.from(document.getElementById('c-target-roles').selectedOptions).map(opt => opt.value);
+    const targetDepartments = parseCsvList(document.getElementById('c-target-departments').value);
     const errEl    = document.getElementById('c-error');
 
     if (!title) { errEl.textContent = 'O título é obrigatório.'; errEl.style.display = 'block'; return; }
 
     const status   = document.getElementById('c-status').value;
     const courseId = isEdit ? course.id : title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g,'').slice(0,30) + '-' + Date.now();
-    const data     = { title, subtitle, duration, category, passingScore: passing, status, order: isEdit ? (course.order ?? 0) : _courses.length };
+    const data     = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles, targetDepartments, status, order: isEdit ? (course.order ?? 0) : _courses.length };
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
@@ -447,6 +475,13 @@ function renderTFOptions(q, i) {
 
 function escHtml(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseCsvList(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
 }
 
 function statusLabel(status) {

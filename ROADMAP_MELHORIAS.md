@@ -77,19 +77,19 @@ Objetivo: transformar a plataforma num sistema completo de aprendizagem e certif
 |---|---:|---|---|
 | [x] | P1 | Certificados PDF | Formacao concluida gera certificado descarregavel |
 | [x] | P1 | Pagina "Certificados" | Colaborador ve certificados ganhos e pendentes |
-| [~] | P1 | Historico de tentativas | Contador de tentativas e melhor nota guardados; historico completo por data e tentativa pendente |
+| [x] | P1 | Historico de tentativas | Contador de tentativas, melhor nota e historico completo por data guardados e apresentados nos resultados |
 | [x] | P1 | Melhor nota por modulo | bestScore calculado e apresentado na pagina de resultados |
-| [ ] | P1 | Prazos de formacoes obrigatorias | Formacoes podem ter data limite |
-| [ ] | P2 | Notificacoes internas | Alertas para prazos, novas formacoes e certificados |
-| [ ] | P2 | Formacoes obrigatorias/opcionais | Catalogo distingue atribuicoes obrigatorias e opcionais |
-| [ ] | P2 | Atribuicao por departamento/role | Admin atribui formacoes a grupos de colaboradores |
-| [ ] | P2 | Catalogo geral | Separar "Atribuidas a mim" de "Catalogo disponivel" |
+| [x] | P1 | Prazos de formacoes obrigatorias | Formacoes podem ter data limite editavel, visivel no dashboard e detalhe da formacao |
+| [x] | P2 | Notificacoes internas | Alertas para prazos, novas formacoes e certificados |
+| [x] | P2 | Formacoes obrigatorias/opcionais | Catalogo distingue atribuicoes obrigatorias e opcionais |
+| [x] | P2 | Atribuicao por departamento/role | Admin atribui formacoes a grupos de colaboradores |
+| [x] | P2 | Catalogo geral | Separar "Atribuidas a mim" de "Catalogo disponivel" |
 | [ ] | P3 | Modo offline/cache | Leitura de conteudos ja abertos sem ligacao |
 
 ### Notas
 
 - Certificados devem depender da conclusao de todos os modulos da formacao.
-- Historico de tentativas deve ser desenhado antes dos relatorios admin.
+- Historico de tentativas ja fica guardado no progresso do modulo e visivel no ecra de resultados.
 
 ---
 

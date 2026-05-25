@@ -23,6 +23,7 @@ Dados do colaborador.
   "email": "colaborador@empresa.pt",
   "nome": "Nome Completo",
   "role": "colaborador",
+  "departamento": "RH",
   "ativo": true,
   "criadoEm": "2026-05-25T00:00:00.000Z"
 }
@@ -45,7 +46,20 @@ Progresso do colaborador.
       "read": true,
       "quizPassed": true,
       "lastScore": 80,
-      "attempts": 1
+      "bestScore": 80,
+      "attempts": 1,
+      "lastAttemptAt": 1779742800000,
+      "completedAt": 1779742800000,
+      "attemptHistory": [
+        {
+          "attempt": 1,
+          "score": 80,
+          "correct": 4,
+          "total": 5,
+          "passed": true,
+          "submittedAt": 1779742800000
+        }
+      ]
     }
   }
 }
@@ -62,6 +76,10 @@ Dados principais da formacao.
   "duration": "2h 30min",
   "category": "Conformidade",
   "passingScore": 60,
+  "dueDate": "2026-06-30",
+  "isRequired": true,
+  "targetRoles": ["colaborador"],
+  "targetDepartments": ["RH", "Operacoes"],
   "order": 0
 }
 ```

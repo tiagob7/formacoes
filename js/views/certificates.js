@@ -1,5 +1,5 @@
 import { icon }                          from '../icons.js';
-import { loadCourses, courseProgress }   from '../course-service.js';
+import { loadCourses, courseProgress, isCourseVisibleToUser }   from '../course-service.js';
 import { getState }                      from '../state.js';
 import { openCertificate }               from '../certificate-service.js';
 import { renderLoadingState }            from '../ui.js';
@@ -11,7 +11,7 @@ export async function renderCertificates(container) {
   let courses = [];
   try {
     const all = await loadCourses();
-    courses = all.filter(c => c.status === 'published');
+    courses = all.filter(c => c.status === 'published' && isCourseVisibleToUser(c, user));
   } catch (e) { console.error(e); }
 
   const earned = courses.filter(c => {

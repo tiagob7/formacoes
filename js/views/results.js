@@ -1,5 +1,5 @@
 import { icon }                                      from '../icons.js';
-import { getCourseById, getModuleById, courseProgress } from '../course-service.js';
+import { getCourseById, getModuleById, courseProgress, isCourseVisibleToUser } from '../course-service.js';
 import { getState, updateModuleProgress }             from '../state.js';
 import { navigate }                                   from '../router.js';
 import { saveModuleProgress }                         from '../firebase-service.js';
@@ -21,7 +21,7 @@ export async function renderResults(container, { courseId, moduleId }) {
   } catch (err) {
     console.error(err);
   }
-  if (!course || !mod) {
+  if (!course || !mod || !isCourseVisibleToUser(course, user)) {
     container.innerHTML = renderEmptyState({
       iconName: 'info',
       title: 'Resultados indisponíveis',
@@ -52,16 +52,29 @@ export async function renderResults(container, { courseId, moduleId }) {
   const passed = score >= course.passingScore;
 
   // Persist progress
-  const existing    = progress?.[courseId]?.[moduleId] || {};
-  const attempts    = (existing.attempts || 0) + 1;
-  const bestScore   = Math.max(score, existing.bestScore || 0);
-  const completedAt = (passed && !existing.quizPassed) ? Date.now() : (existing.completedAt || null);
+  const existing        = progress?.[courseId]?.[moduleId] || {};
+  const previousHistory = Array.isArray(existing.attemptHistory) ? existing.attemptHistory : [];
+  const submittedAt     = Date.now();
+  const attempts        = Math.max(existing.attempts || 0, previousHistory.length) + 1;
+  const bestScore       = Math.max(score, existing.bestScore || 0);
+  const completedAt     = (passed && !existing.quizPassed) ? submittedAt : (existing.completedAt || null);
+  const attemptEntry    = {
+    attempt: attempts,
+    score,
+    correct,
+    total: questions.length,
+    passed,
+    submittedAt,
+  };
+  const attemptHistory = [...previousHistory, attemptEntry];
   const modData     = {
     read:        true,
     quizPassed:  passed || !!existing.quizPassed,
     lastScore:   score,
     bestScore,
     attempts,
+    lastAttemptAt: submittedAt,
+    attemptHistory,
     completedAt,
   };
   updateModuleProgress(courseId, moduleId, modData);
@@ -136,6 +149,11 @@ export async function renderResults(container, { courseId, moduleId }) {
         </div>
       </div>
 
+      <h3 class="results-review-title">${icon('clock', 16, 'var(--navy)')} Historico de tentativas</h3>
+      <div class="attempt-history">
+        ${attemptHistory.slice().reverse().map(attempt => renderAttemptHistoryItem(attempt, attempts)).join('')}
+      </div>
+
       <!-- Per-question review -->
       <h3 class="results-review-title">${icon('chart', 16, 'var(--navy)')} Revisão pergunta a pergunta</h3>
       <div class="results-questions">
@@ -178,6 +196,37 @@ export async function renderResults(container, { courseId, moduleId }) {
         completedAt: dates.length ? Math.max(...dates) : Date.now(),
       });
     });
+  }
+}
+
+function renderAttemptHistoryItem(attempt, currentAttempt) {
+  const isCurrent = attempt.attempt === currentAttempt;
+  const submittedAt = attempt.submittedAt ? formatAttemptDate(attempt.submittedAt) : 'Data indisponivel';
+  const correct = Number.isFinite(attempt.correct) ? attempt.correct : '-';
+  const total = Number.isFinite(attempt.total) ? attempt.total : '-';
+  const score = Number.isFinite(attempt.score) ? `${attempt.score}%` : '-';
+
+  return `
+    <div class="attempt-item ${attempt.passed ? 'pass' : 'fail'} ${isCurrent ? 'current' : ''}">
+      <div class="attempt-main">
+        <div class="attempt-title">Tentativa ${attempt.attempt || '-'}${isCurrent ? ' atual' : ''}</div>
+        <div class="attempt-meta">${submittedAt} &middot; ${correct}/${total} respostas corretas</div>
+      </div>
+      <div class="attempt-score">
+        <strong>${score}</strong>
+        <span>${attempt.passed ? 'Apto' : 'Nao apto'}</span>
+      </div>
+    </div>`;
+}
+
+function formatAttemptDate(value) {
+  try {
+    return new Intl.DateTimeFormat('pt-PT', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  } catch {
+    return 'Data indisponivel';
   }
 }
 

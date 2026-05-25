@@ -24,6 +24,11 @@
 - [x] Grelha de cartões de formação (3 formações de exemplo)
 - [x] Cartão mostra: categoria, título, subtítulo, duração, nº de módulos, barra de progresso, estado (Não iniciada / Em curso / Concluída)
 - [x] CTA dinâmico por cartão: "Começar" / "Continuar" / "Rever"
+- [x] Prazos opcionais por formação, com destaque de formações atrasadas ou próximas do fim
+- [x] Distinção entre formações obrigatórias e opcionais no gestor, dashboard e detalhe
+- [x] Catálogo do dashboard separado entre formações atribuídas e catálogo opcional
+- [x] Atribuição de formações obrigatórias por role e departamento
+- [x] Página de notificações internas para prazos, novas formações e certificados disponíveis
 
 ### Formações disponíveis (dados de exemplo)
 - [x] **Proteção de Dados e RGPD** — 3 módulos, 13 perguntas de teste
@@ -68,6 +73,7 @@
 - [x] Revisão pergunta a pergunta com resposta correcta e explicação
 - [x] CTA "Próximo módulo" (quando existir) ou "Formação concluída" ou "Repetir avaliação"
 - [x] Persistência em Firebase: `read`, `quizPassed`, `lastScore`, `attempts`
+- [x] Histórico de tentativas por módulo com data, nota, estado e respostas corretas
 
 ### Persistência de dados (Firebase Firestore)
 - [x] Progresso por colaborador: `employees/{number}/progress/data`
@@ -95,7 +101,7 @@
 - [ ] Ecrã de Catálogo com filtros por categoria
 - [ ] Certificados de conclusão (download PDF)
 - [ ] Ecrã de Perfil do colaborador
-- [ ] Histórico de tentativas por módulo
+- [x] Histórico de tentativas por módulo
 - [ ] Notificações (prazos de formação obrigatória)
 - [ ] Modo de revisão (rever módulo já concluído sem recomeçar)
 

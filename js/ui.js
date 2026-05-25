@@ -2,13 +2,16 @@ import { icon }         from './icons.js';
 import { getState }     from './state.js';
 import { navigate }     from './router.js';
 import { logoutEmployee } from './firebase-service.js';
+import { getCachedCourses } from './course-service.js';
+import { notificationCount } from './notification-service.js';
 
 /* ------------------------------------------------------------------ */
 /* App Shell                                                            */
 /* ------------------------------------------------------------------ */
 export function renderShell(activeView) {
-  const { user } = getState();
+  const { user, progress } = getState();
   const initial  = user?.name?.charAt(0)?.toUpperCase() || '?';
+  const unreadNotifications = notificationCount(getCachedCourses(), progress, user);
 
   const role = user?.role || 'colaborador';
 
@@ -45,6 +48,7 @@ export function renderShell(activeView) {
       <nav class="sidebar-nav">
         <div class="nav-label">PRINCIPAL</div>
         ${navItem('home',     'Painel',         activeView === 'dashboard',    '/dashboard')}
+        ${navItem('bell',     'Notificações',   activeView === 'notifications','/notifications', unreadNotifications || '')}
         ${navItem('award',    'Certificados',   activeView === 'certificates', '/certificates')}
         ${adminNav}
         ${gestorNav}

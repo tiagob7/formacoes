@@ -82,7 +82,7 @@ export async function loginEmployee(email, password) {
     const progressSnap = await getDoc(progressRef);
     const progress = progressSnap.exists() ? progressSnap.data() : {};
 
-    const userObj = { email: normalizedEmail, name: userData.nome, role, uid };
+    const userObj = { email: normalizedEmail, name: userData.nome, role, uid, departamento: userData.departamento || '' };
     sessionStorage.setItem('formacoes_user', JSON.stringify(userObj));
 
     return { ...userObj, progress };
@@ -110,7 +110,7 @@ export function getSessionUser() {
 
 /**
  * Saves a single module's progress record.
- * Shape: { read, quizPassed, lastScore, attempts }
+ * Shape: { read, quizPassed, lastScore, bestScore, attempts, attemptHistory }
  */
 export async function saveModuleProgress(email, courseId, moduleId, data) {
   if (!isConfigured()) {
@@ -193,7 +193,7 @@ export async function getEmployees() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function createEmployee(email, password, nome, role = 'colaborador') {
+export async function createEmployee(email, password, nome, role = 'colaborador', departamento = '') {
   init();
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -214,6 +214,7 @@ export async function createEmployee(email, password, nome, role = 'colaborador'
     email: normalizedEmail,
     nome,
     role,
+    departamento,
     ativo: true,
     criadoEm: new Date().toISOString(),
   });

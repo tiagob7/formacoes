@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { getCourseById, courseProgress } from '../course-service.js';
+import { getCourseById, courseProgress, getCourseDeadlineState, isCourseVisibleToUser } from '../course-service.js';
 import { getState } from '../state.js';
 import { navigate } from '../router.js';
 import { renderLoadingState, renderEmptyState } from '../ui.js';
@@ -14,8 +14,8 @@ export async function renderCourseDetail(container, { courseId }) {
     console.error(err);
   }
 
-  const { progress } = getState();
-  if (!course) {
+  const { user, progress } = getState();
+  if (!course || !isCourseVisibleToUser(course, user)) {
     container.innerHTML = renderEmptyState({
       iconName: 'info',
       title: 'Formação não encontrada',
@@ -29,6 +29,7 @@ export async function renderCourseDetail(container, { courseId }) {
   const cp = progress?.[course.id] || {};
   const nextModule = course.modules.find(mod => !cp[mod.id]?.quizPassed) || course.modules[0];
   const ctaLabel = p.pct === 100 ? 'Rever formação' : p.started > 0 ? 'Continuar formação' : 'Começar formação';
+  const deadline = getCourseDeadlineState(course, progress);
 
   container.innerHTML = `
     <div class="topbar">
@@ -58,6 +59,8 @@ export async function renderCourseDetail(container, { courseId }) {
             <span>${icon('book', 14, 'currentColor')} ${course.modules.length} módulos</span>
             <span>${icon('clock', 14, 'currentColor')} ${course.duration || 'Duração por definir'}</span>
             <span>${icon('award', 14, 'currentColor')} Nota mínima ${course.passingScore}%</span>
+            <span class="course-detail-assignment ${course.isRequired ? 'required' : 'optional'}">${course.isRequired ? 'Obrigatória' : 'Opcional'}</span>
+            ${deadline ? `<span class="course-detail-deadline ${deadline.status}">${icon('clock', 14, 'currentColor')} ${deadlineLabel(deadline)}</span>` : ''}
           </div>
         </div>
         <div class="course-detail-progress">
@@ -99,6 +102,13 @@ export async function renderCourseDetail(container, { courseId }) {
   container.querySelectorAll('[data-module-id]').forEach(btn => {
     btn.addEventListener('click', () => navigate(`/module/${course.id}/${btn.dataset.moduleId}`));
   });
+}
+
+function deadlineLabel(deadline) {
+  if (deadline.completed) return `Concluida dentro do prazo: ${deadline.label}`;
+  if (deadline.isOverdue) return `Atrasada desde ${deadline.label}`;
+  if (deadline.isDueSoon) return `Termina em ${Math.max(deadline.daysRemaining, 0)} dias (${deadline.label})`;
+  return `Data limite: ${deadline.label}`;
 }
 
 function moduleRow(course, mod, index, cp) {

@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { getCourseById, getModuleById, courseProgress } from '../course-service.js';
+import { getCourseById, getModuleById, courseProgress, isCourseVisibleToUser } from '../course-service.js';
 import { getState, setState, updateModuleProgress } from '../state.js';
 import { navigate } from '../router.js';
 import { saveModuleProgress, getModulePdfUrl, uploadModulePDF } from '../firebase-service.js';
@@ -20,7 +20,7 @@ export async function renderModule(container, { courseId, moduleId }) {
     console.error(err);
   }
 
-  if (!course || !mod) {
+  if (!course || !mod || !isCourseVisibleToUser(course, user)) {
     container.innerHTML = renderEmptyState({
       iconName: 'info',
       title: 'Módulo não encontrado',

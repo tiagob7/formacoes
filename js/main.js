@@ -16,6 +16,7 @@ import { renderResults }                from './views/results.js';
 import { renderAdmin }                  from './views/admin.js';
 import { renderContentManager }         from './views/content-manager.js';
 import { renderCertificates }           from './views/certificates.js';
+import { renderNotifications }          from './views/notifications.js';
 
 const app = document.getElementById('app');
 
@@ -87,6 +88,14 @@ route('certificates', async () => {
   if (!isCurrentRoute(v)) return;
   const main = mountShell('certificates');
   await renderCertificates(main);
+});
+
+route('notifications', async () => {
+  const v = currentRouteVersion();
+  if (!requireAuth()) return;
+  if (!isCurrentRoute(v)) return;
+  const main = mountShell('notifications');
+  await renderNotifications(main);
 });
 
 route('admin', async () => {

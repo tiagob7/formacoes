@@ -1,5 +1,5 @@
 import { icon }                             from '../icons.js';
-import { getCourseById, getModuleById }      from '../course-service.js';
+import { getCourseById, getModuleById, isCourseVisibleToUser }      from '../course-service.js';
 import { getState, setState }               from '../state.js';
 import { navigate }                         from '../router.js';
 import { renderLoadingState, renderEmptyState } from '../ui.js';
@@ -17,7 +17,7 @@ export async function renderQuiz(container, { courseId, moduleId }) {
   } catch (err) {
     console.error(err);
   }
-  if (!course || !mod) {
+  if (!course || !mod || !isCourseVisibleToUser(course, getState().user)) {
     container.innerHTML = renderEmptyState({
       iconName: 'info',
       title: 'Avaliação não encontrada',

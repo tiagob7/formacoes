@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { loadCourses, courseProgress, getResumeTarget, globalProgress, getCoursesStatus } from '../course-service.js';
+import { loadCourses, courseProgress, getResumeTarget, globalProgress, getCoursesStatus, getCourseDeadlineState, isCourseAssignedToUser, isCourseVisibleToUser } from '../course-service.js';
 import { navigate } from '../router.js';
 import { getState } from '../state.js';
 import { renderLoadingState, renderInlineNotice, renderEmptyState } from '../ui.js';
@@ -11,7 +11,7 @@ export async function renderDashboard(container) {
   let courses = [];
   try {
     const all = await loadCourses();
-    courses = all.filter(c => c.status === 'published');
+    courses = all.filter(c => c.status === 'published' && isCourseVisibleToUser(c, user));
   } catch (err) {
     console.error(err);
     container.innerHTML = renderEmptyState({
@@ -88,10 +88,11 @@ export async function renderDashboard(container) {
           </div>
           <div class="course-filter-stack">
             <div class="course-filter-group" id="category-filters" aria-label="Filtrar por categoria"></div>
+            <div class="course-filter-group" id="assignment-filters" aria-label="Filtrar por tipo de atribuiÃ§Ã£o"></div>
             <div class="course-filter-group" id="status-filters" aria-label="Filtrar por estado"></div>
           </div>
         </div>
-        <div class="courses-grid" id="courses-grid"></div>
+        <div class="courses-catalog" id="courses-grid"></div>
         <div class="empty-state small" id="courses-empty" style="display:none">
           <div class="empty-state-inner">
             <div class="empty-state-icon">${icon('search', 28, 'var(--ink-3)')}</div>
@@ -113,12 +114,15 @@ export async function renderDashboard(container) {
 
   const searchInput = document.querySelector('.search-input');
   const categoryFilters = document.getElementById('category-filters');
+  const assignmentFilters = document.getElementById('assignment-filters');
   const statusFilters = document.getElementById('status-filters');
   const grid = document.getElementById('courses-grid');
-  if (!searchInput || !categoryFilters || !statusFilters || !grid) return;
+  if (!searchInput || !categoryFilters || !assignmentFilters || !statusFilters || !grid) return;
   const categories = ['Todas', ...new Set(courses.map(course => course.category).filter(Boolean))];
-  const statuses = ['Todos', 'Não iniciada', 'Em curso', 'Concluída'];
+  const assignmentTypes = ['Todas', 'Obrigatórias', 'Opcionais'];
+  const statuses = ['Todos', 'Não iniciada', 'Em curso', 'Concluída', 'Atrasada'];
   let activeCategory = 'Todas';
+  let activeAssignment = 'Todas';
   let activeStatus = 'Todos';
   let query = '';
 
@@ -131,6 +135,12 @@ export async function renderDashboard(container) {
   statusFilters.innerHTML = statuses.map((status, index) => `
     <button class="filter-chip ${index === 0 ? 'active' : ''}" data-status="${status}">
       ${status}
+    </button>
+  `).join('');
+
+  assignmentFilters.innerHTML = assignmentTypes.map((type, index) => `
+    <button class="filter-chip ${index === 0 ? 'active' : ''}" data-assignment="${type}">
+      ${type}
     </button>
   `).join('');
 
@@ -152,6 +162,15 @@ export async function renderDashboard(container) {
     });
   });
 
+  assignmentFilters.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeAssignment = btn.dataset.assignment;
+      assignmentFilters.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      renderCourseGrid();
+    });
+  });
+
   searchInput.addEventListener('input', e => {
     query = e.target.value.trim().toLowerCase();
     renderCourseGrid();
@@ -163,9 +182,15 @@ export async function renderDashboard(container) {
     const filteredCourses = courses.filter(course => {
       const p = courseProgress(course, progress);
       const matchesCategory = activeCategory === 'Todas' || course.category === activeCategory;
-      const matchesStatus = activeStatus === 'Todos' || p.status === activeStatus;
+      const matchesAssignment = activeAssignment === 'Todas'
+        || (activeAssignment === 'Obrigatórias' && course.isRequired)
+        || (activeAssignment === 'Opcionais' && !course.isRequired);
+      const deadline = getCourseDeadlineState(course, progress);
+      const matchesStatus = activeStatus === 'Todos'
+        || p.status === activeStatus
+        || (activeStatus === 'Atrasada' && deadline?.isOverdue);
       const haystack = `${course.title} ${course.subtitle} ${course.category}`.toLowerCase();
-      return matchesCategory && matchesStatus && (!query || haystack.includes(query));
+      return matchesCategory && matchesAssignment && matchesStatus && (!query || haystack.includes(query));
     });
 
     document.getElementById('courses-count').textContent =
@@ -180,19 +205,47 @@ export async function renderDashboard(container) {
     const empty = document.getElementById('courses-empty');
     grid.innerHTML = '';
     empty.style.display = list.length ? 'none' : 'grid';
-    list.forEach(course => {
-      const p   = courseProgress(course, progress);
-      const el  = document.createElement('article');
-      el.className = 'course-card';
-      el.innerHTML = courseCard(course, p);
-      el.querySelector('.course-cta').addEventListener('click', (e) => {
+    if (!list.length) return;
+
+    const assigned = list.filter(course => isCourseAssignedToUser(course, getState().user));
+    const catalog = list.filter(course => !course.isRequired);
+
+    grid.innerHTML = [
+      renderCourseSection('Atribuidas a mim', 'Formacoes obrigatorias para concluir.', assigned),
+      renderCourseSection('Catalogo disponivel', 'Formacoes opcionais que pode iniciar quando fizer sentido.', catalog),
+    ].filter(Boolean).join('');
+
+    grid.querySelectorAll('.course-card').forEach(el => {
+      const course = list.find(item => item.id === el.dataset.courseId);
+      if (!course) return;
+      el.querySelector('.course-cta')?.addEventListener('click', (e) => {
         e.stopPropagation();
         openCourse(course);
       });
       el.addEventListener('click', () => openCourse(course));
-      grid.appendChild(el);
     });
   }
+}
+
+function renderCourseSection(title, subtitle, courses) {
+  if (!courses.length) return '';
+  return `
+    <section class="course-catalog-section">
+      <div class="course-catalog-head">
+        <div>
+          <h3 class="course-catalog-title">${title}</h3>
+          <div class="course-catalog-sub">${subtitle}</div>
+        </div>
+        <span class="course-catalog-count">${courses.length}</span>
+      </div>
+      <div class="courses-grid">
+        ${courses.map(course => `
+          <article class="course-card" data-course-id="${course.id}">
+            ${courseCard(course, courseProgress(course, getState().progress))}
+          </article>
+        `).join('')}
+      </div>
+    </section>`;
 }
 
 function openCourse(course) {
@@ -219,13 +272,19 @@ function courseCard(course, p) {
   const statusColor = p.status === 'Concluída' ? 'var(--green)' : p.status === 'Em curso' ? 'var(--amber)' : 'var(--ink-3)';
   const statusBg    = p.status === 'Concluída' ? 'var(--green-soft)' : p.status === 'Em curso' ? 'var(--amber-soft)' : '#F4F6FA';
   const ctaLabel    = p.pct === 0 ? 'Começar' : p.pct === 100 ? 'Rever' : 'Continuar';
+  const deadline    = getCourseDeadlineState(course, getState().progress);
+  const assignmentClass = course.isRequired ? 'required' : 'optional';
+  const assignmentLabel = course.isRequired ? 'Obrigatória' : 'Opcional';
 
   return `
     <div class="course-cover">${courseCoverSVG(course.id)}<div class="course-category">${course.category}</div></div>
     <div class="course-body">
-      <div class="course-status" style="background:${statusBg};color:${statusColor}">
-        ${p.status === 'Concluída' ? icon('check', 11, statusColor, 3) : ''}
-        ${p.status}
+      <div class="course-status-row">
+        <div class="course-status" style="background:${statusBg};color:${statusColor}">
+          ${p.status === 'Concluída' ? icon('check', 11, statusColor, 3) : ''}
+          ${p.status}
+        </div>
+        <div class="course-assignment ${assignmentClass}">${assignmentLabel}</div>
       </div>
       <h3 class="course-title">${course.title}</h3>
       <p class="course-subtitle">${course.subtitle}</p>
@@ -233,6 +292,7 @@ function courseCard(course, p) {
         <span class="meta-item">${icon('book', 13, 'var(--ink-3)')} ${course.modules.length} módulos</span>
         <span class="meta-item">${icon('clock', 13, 'var(--ink-3)')} ${course.duration}</span>
       </div>
+      ${deadline ? deadlineBadge(deadline) : ''}
       <div class="course-progress-top">
         <span>Progresso</span>
         <span class="course-progress-pct">${p.completed}/${p.total} · ${p.pct}%</span>
@@ -241,6 +301,20 @@ function courseCard(course, p) {
       <button class="course-cta">
         ${ctaLabel} ${icon('arrowRight', 13)}
       </button>
+    </div>`;
+}
+
+function deadlineBadge(deadline) {
+  const label = deadline.completed
+    ? `Concluida dentro do prazo: ${deadline.label}`
+    : deadline.isOverdue
+      ? `Atrasada desde ${deadline.label}`
+      : deadline.isDueSoon
+        ? `Termina em ${Math.max(deadline.daysRemaining, 0)} dias (${deadline.label})`
+        : `Data limite: ${deadline.label}`;
+  return `
+    <div class="course-deadline ${deadline.status}">
+      ${icon('clock', 12, 'currentColor')} ${label}
     </div>`;
 }
 

@@ -73,7 +73,7 @@ async function renderUsers(container) {
     <div class="admin-table-wrap">
       <table class="admin-table">
         <thead><tr>
-          <th>Nome</th><th>Email</th><th>Role</th><th>Estado</th><th></th>
+          <th>Nome</th><th>Email</th><th>Departamento</th><th>Role</th><th>Estado</th><th></th>
         </tr></thead>
         <tbody id="users-tbody"></tbody>
       </table>
@@ -84,7 +84,9 @@ async function renderUsers(container) {
   document.getElementById('search-users').addEventListener('input', e => {
     const q = e.target.value.toLowerCase();
     renderUsersRows(employees.filter(emp =>
-      (emp.nome || '').toLowerCase().includes(q) || emp.id.toLowerCase().includes(q)
+      (emp.nome || '').toLowerCase().includes(q)
+      || emp.id.toLowerCase().includes(q)
+      || (emp.departamento || '').toLowerCase().includes(q)
     ), employees);
   });
 
@@ -97,13 +99,14 @@ function renderUsersRows(list, all) {
   const tbody = document.getElementById('users-tbody');
   if (!tbody) return;
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="table-empty">Nenhum utilizador encontrado</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Nenhum utilizador encontrado</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(emp => `
     <tr>
       <td><strong>${emp.nome || '—'}</strong></td>
       <td style="color:var(--ink-3);font-size:13px">${emp.id}</td>
+      <td style="color:var(--ink-3);font-size:13px">${emp.departamento || '—'}</td>
       <td>
         <span class="role-badge"
               style="background:${ROLE_COLOR[emp.role]}18;color:${ROLE_COLOR[emp.role]};border:1px solid ${ROLE_COLOR[emp.role]}30">
@@ -168,6 +171,9 @@ function openUserModal(emp, all) {
         <input id="u-email" class="form-input" type="email" value="${emp?.id || ''}"
                placeholder="email@empresa.pt" ${isEdit ? 'disabled style="opacity:.6"' : ''} />
 
+        <label class="form-label" style="margin-top:1rem">Departamento</label>
+        <input id="u-departamento" class="form-input" value="${emp?.departamento || ''}" placeholder="ex.: RH" />
+
         ${!isEdit ? `
         <label class="form-label" style="margin-top:1rem">Palavra-passe</label>
         <input id="u-password" class="form-input" type="password"
@@ -201,6 +207,7 @@ function openUserModal(emp, all) {
   document.getElementById('modal-save').addEventListener('click', async () => {
     const nome     = document.getElementById('u-nome').value.trim();
     const email    = (document.getElementById('u-email').value || emp?.id || '').trim().toLowerCase();
+    const departamento = document.getElementById('u-departamento').value.trim();
     const password = !isEdit ? document.getElementById('u-password').value : null;
     const role     = document.getElementById('u-role').value;
     const ativo    = isEdit ? document.getElementById('u-ativo').value === 'true' : true;
@@ -223,9 +230,9 @@ function openUserModal(emp, all) {
     btn.disabled = true;
     try {
       if (isEdit) {
-        await updateEmployee(email, { nome, role, ativo });
+        await updateEmployee(email, { nome, role, departamento, ativo });
       } else {
-        await createEmployee(email, password, nome, role);
+        await createEmployee(email, password, nome, role, departamento);
       }
       showToast(`Utilizador ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();

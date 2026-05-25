@@ -5,7 +5,7 @@
 
 const state = {
   user:          null,    // { email, name, role, uid } — role: 'colaborador' | 'gestor_conteudos' | 'administrador'
-  progress:      {},      // { courseId: { moduleId: { read, quizPassed, lastScore, attempts } } }
+  progress:      {},      // { courseId: { moduleId: { read, quizPassed, lastScore, bestScore, attempts, attemptHistory } } }
   view:          'login', // login | dashboard | module | quiz | results
   courseId:      null,
   moduleId:      null,
