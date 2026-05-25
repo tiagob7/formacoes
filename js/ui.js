@@ -44,7 +44,8 @@ export function renderShell(activeView) {
       </div>
       <nav class="sidebar-nav">
         <div class="nav-label">PRINCIPAL</div>
-        ${navItem('home',  'Painel', activeView === 'dashboard', '/dashboard')}
+        ${navItem('home',     'Painel',         activeView === 'dashboard',    '/dashboard')}
+        ${navItem('award',    'Certificados',   activeView === 'certificates', '/certificates')}
         ${adminNav}
         ${gestorNav}
       </nav>
@@ -63,9 +64,9 @@ export function renderShell(activeView) {
 
 function navItem(iconName, label, active, path, badge) {
   const cls = active ? 'nav-item active' : 'nav-item';
-  const onclick = path ? `onclick="navigate('${path}')"` : '';
+  const dataProp = path ? `data-nav-path="${path}"` : '';
   return `
-    <button class="${cls}" ${onclick}>
+    <button class="${cls}" ${dataProp}>
       ${icon(iconName, 17)}
       <span>${label}</span>
       ${badge ? `<span class="nav-badge">${badge}</span>` : ''}
@@ -158,7 +159,11 @@ export function wireShell() {
     mobileNavKeydownBound = true;
   }
   document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => setMobileNav(false));
+    item.addEventListener('click', () => {
+      setMobileNav(false);
+      const path = item.dataset.navPath;
+      if (path) navigate(path);
+    });
   });
 
   const btn = document.getElementById('logout-btn');

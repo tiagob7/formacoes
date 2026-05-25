@@ -68,6 +68,19 @@ export async function renderModule(container, { courseId, moduleId }) {
     });
   });
 
+  const toggleBtn = document.getElementById('module-sidebar-toggle');
+  const sidebar   = document.getElementById('module-sidebar');
+  if (toggleBtn && sidebar) {
+    const label = document.getElementById('module-toggle-label');
+    const setCollapsed = (collapsed) => {
+      sidebar.classList.toggle('collapsed', collapsed);
+      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      if (label) label.textContent = collapsed ? `Ver módulos (${completed}/${total})` : 'Recolher módulos';
+    };
+    if (window.innerWidth < 760) setCollapsed(true);
+    toggleBtn.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('collapsed')));
+  }
+
   const btnRead = document.getElementById('btn-mark-read');
   if (btnRead) {
     btnRead.addEventListener('click', async () => {
@@ -125,12 +138,13 @@ function getModuleLearningState(moduleProgress = {}) {
     return {
       key: 'completed',
       label: 'Concluído',
-      title: 'Módulo concluído',
-      message: 'A avaliação deste módulo já foi concluída com sucesso.',
+      title: 'Em modo de revisão',
+      message: 'Este módulo já foi concluído com sucesso. O teu progresso está preservado — estás apenas a rever o conteúdo.',
       iconName: 'check',
       iconColor: 'var(--green)',
       canStartQuiz: true,
       showMarkRead: false,
+      isReview: true,
     };
   }
 
@@ -160,14 +174,23 @@ function getModuleLearningState(moduleProgress = {}) {
 }
 
 function moduleStatusBadge(state) {
+  const badgeLabel = state.isReview ? 'Em revisão' : state.label;
   return `
     <span class="module-state-badge ${state.key}">
       ${icon(state.iconName, 12, 'currentColor')}
-      ${state.label}
+      ${badgeLabel}
     </span>`;
 }
 
 function moduleActionBar(state) {
+  const quizBtn = state.isReview
+    ? `<button class="btn-sm" id="btn-start-quiz">
+         ${icon('refresh', 13)} Repetir avaliação
+       </button>`
+    : `<button class="btn-sm primary" id="btn-start-quiz" ${state.canStartQuiz ? '' : 'disabled'}>
+         Iniciar avaliação ${icon('arrowRight', 13)}
+       </button>`;
+
   return `
     <div class="read-notice ${state.key}" id="read-notice">
       <div class="read-notice-text">
@@ -183,9 +206,7 @@ function moduleActionBar(state) {
                ${icon('check', 14)} Marcar como lido
              </button>`
           : ''}
-        <button class="btn-sm primary" id="btn-start-quiz" ${state.canStartQuiz ? '' : 'disabled'}>
-          Iniciar avaliação ${icon('arrowRight', 13)}
-        </button>
+        ${quizBtn}
       </div>
     </div>`;
 }
@@ -211,7 +232,7 @@ function moduleSidebar(course, activeModuleId, progress, pct, completed, total) 
   }).join('');
 
   return `
-    <div class="module-sidebar">
+    <div class="module-sidebar" id="module-sidebar">
       <div class="module-sidebar-header">
         <div class="module-sidebar-course">Formação</div>
         <div class="module-sidebar-title">${course.title}</div>
@@ -222,6 +243,9 @@ function moduleSidebar(course, activeModuleId, progress, pct, completed, total) 
         <div class="module-progress-bar">
           <div class="module-progress-fill" style="width:${pct}%"></div>
         </div>
+        <button class="module-sidebar-toggle" id="module-sidebar-toggle" aria-expanded="true">
+          ${icon('chevronDown', 14)} <span id="module-toggle-label">Recolher módulos</span>
+        </button>
       </div>
       <div class="module-list">${items}</div>
     </div>`;

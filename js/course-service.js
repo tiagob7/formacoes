@@ -18,6 +18,7 @@ function normalizeCourse(course, index = 0) {
     category: course.category || 'Geral',
     passingScore: Number.isFinite(Number(course.passingScore)) ? Number(course.passingScore) : 60,
     order: Number.isFinite(Number(course.order)) ? Number(course.order) : index,
+    status: course.status || 'published',
     modules: modules.map((mod, modIndex) => ({
       id: mod.id,
       title: mod.title || `Modulo ${modIndex + 1}`,

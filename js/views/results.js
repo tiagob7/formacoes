@@ -4,6 +4,7 @@ import { getState, updateModuleProgress }             from '../state.js';
 import { navigate }                                   from '../router.js';
 import { saveModuleProgress }                         from '../firebase-service.js';
 import { renderLoadingState, renderEmptyState, renderInlineNotice } from '../ui.js';
+import { openCertificate }                            from '../certificate-service.js';
 
 export async function renderResults(container, { courseId, moduleId }) {
   container.innerHTML = renderLoadingState('A calcular resultados...');
@@ -51,13 +52,17 @@ export async function renderResults(container, { courseId, moduleId }) {
   const passed = score >= course.passingScore;
 
   // Persist progress
-  const existing = progress?.[courseId]?.[moduleId] || {};
-  const attempts = (existing.attempts || 0) + 1;
-  const modData  = {
-    read:       true,
-    quizPassed: passed || !!existing.quizPassed,
-    lastScore:  score,
+  const existing    = progress?.[courseId]?.[moduleId] || {};
+  const attempts    = (existing.attempts || 0) + 1;
+  const bestScore   = Math.max(score, existing.bestScore || 0);
+  const completedAt = (passed && !existing.quizPassed) ? Date.now() : (existing.completedAt || null);
+  const modData     = {
+    read:        true,
+    quizPassed:  passed || !!existing.quizPassed,
+    lastScore:   score,
+    bestScore,
     attempts,
+    completedAt,
   };
   updateModuleProgress(courseId, moduleId, modData);
   try {
@@ -121,6 +126,14 @@ export async function renderResults(container, { courseId, moduleId }) {
           <div class="result-stat-n">${questions.length}</div>
           <div class="result-stat-l">Total de perguntas</div>
         </div>
+        <div class="result-stat">
+          <div class="result-stat-n" style="color:var(--cyan-2)">${bestScore}<span style="font-size:14px">%</span></div>
+          <div class="result-stat-l">Melhor nota</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-n">${attempts}</div>
+          <div class="result-stat-l">${attempts === 1 ? 'Tentativa' : 'Tentativas'}</div>
+        </div>
       </div>
 
       <!-- Per-question review -->
@@ -141,14 +154,31 @@ export async function renderResults(container, { courseId, moduleId }) {
                Próximo módulo: ${nextMod.title} ${icon('arrowRight', 14)}
              </button>`
           : courseComplete
-            ? `<button class="btn-next" onclick="navigate('/dashboard')">
-                 ${icon('award', 14)} Formação concluída! Voltar ao painel
+            ? `<button class="btn-outline" onclick="navigate('/dashboard')">
+                 ${icon('home', 14)} Voltar ao painel
+               </button>
+               <button class="btn-next" id="btn-certificate">
+                 ${icon('award', 14)} Ver certificado
                </button>`
             : `<button class="btn-next" onclick="navigate('/dashboard')">
                  ${icon('home', 14)} Voltar ao painel
                </button>`}
       </div>
     </div>`;
+
+  if (courseComplete && passed) {
+    document.getElementById('btn-certificate')?.addEventListener('click', () => {
+      const { progress: updatedProgress } = getState();
+      const cp    = updatedProgress?.[courseId] || {};
+      const dates = course.modules.map(m => cp[m.id]?.completedAt).filter(Boolean);
+      openCertificate({
+        userName:    user?.name || user?.email || 'Colaborador',
+        courseName:  course.title,
+        category:    course.category,
+        completedAt: dates.length ? Math.max(...dates) : Date.now(),
+      });
+    });
+  }
 }
 
 function questionReview(q, i, answer) {

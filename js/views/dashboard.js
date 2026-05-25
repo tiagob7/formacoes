@@ -10,7 +10,8 @@ export async function renderDashboard(container) {
   const { user, progress } = getState();
   let courses = [];
   try {
-    courses = await loadCourses();
+    const all = await loadCourses();
+    courses = all.filter(c => c.status === 'published');
   } catch (err) {
     console.error(err);
     container.innerHTML = renderEmptyState({
@@ -102,7 +103,9 @@ export async function renderDashboard(container) {
     </div>`;
 
   // Banner CTA
-  document.getElementById('banner-cta').addEventListener('click', () => {
+  const bannerCta = document.getElementById('banner-cta');
+  if (!bannerCta) return;
+  bannerCta.addEventListener('click', () => {
     const target = resumeCourse || courses[0];
     const targetModule = resumeModule || target?.modules?.[0];
     if (target && targetModule) navigate(`/module/${target.id}/${targetModule.id}`);
@@ -112,6 +115,7 @@ export async function renderDashboard(container) {
   const categoryFilters = document.getElementById('category-filters');
   const statusFilters = document.getElementById('status-filters');
   const grid = document.getElementById('courses-grid');
+  if (!searchInput || !categoryFilters || !statusFilters || !grid) return;
   const categories = ['Todas', ...new Set(courses.map(course => course.category).filter(Boolean))];
   const statuses = ['Todos', 'Não iniciada', 'Em curso', 'Concluída'];
   let activeCategory = 'Todas';

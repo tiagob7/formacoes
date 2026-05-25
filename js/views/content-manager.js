@@ -5,7 +5,8 @@ import { COURSES }    from '../data.js';
 import { clearCoursesCache } from '../course-service.js';
 import { getCoursesFromDB, saveCourse, deleteCourseFromDB, saveModule, deleteModuleFromDB, uploadModulePDF, getModulePdfUrl } from '../firebase-service.js';
 
-let _courses = [];
+let _courses  = [];
+let _editQuiz = [];
 
 export async function renderContentManager(container) {
   const { user } = getState();
@@ -62,8 +63,11 @@ function renderCourseList(root) {
       card.innerHTML = `
         <div class="cm-course-header">
           <div>
-            <div class="cm-course-title">${course.title}</div>
-            <div class="cm-course-sub">${course.subtitle || ''}</div>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <div class="cm-course-title">${escHtml(course.title)}</div>
+              <span class="cm-status-badge cm-status-${course.status || 'draft'}">${statusLabel(course.status)}</span>
+            </div>
+            <div class="cm-course-sub">${escHtml(course.subtitle || '')}</div>
           </div>
           <div class="cm-course-actions">
             <button class="btn-icon" data-action="edit-course" title="Editar formação" aria-label="Editar formação">${icon('edit',14)}</button>
@@ -147,9 +151,19 @@ function openCourseModal(course) {
           </div>
         </div>
 
-        <div style="margin-top:1rem">
-          <label class="form-label">Nota mínima de aprovação (%)</label>
-          <input id="c-passing" class="form-input" type="number" min="0" max="100" value="${course?.passingScore ?? 60}" style="max-width:120px" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+          <div>
+            <label class="form-label">Nota mínima de aprovação (%)</label>
+            <input id="c-passing" class="form-input" type="number" min="0" max="100" value="${course?.passingScore ?? 60}" />
+          </div>
+          <div>
+            <label class="form-label">Estado de publicação</label>
+            <select id="c-status" class="form-input">
+              <option value="draft"     ${(course?.status || 'draft') === 'draft'     ? 'selected' : ''}>Rascunho</option>
+              <option value="published" ${course?.status === 'published' ? 'selected' : ''}>Publicado</option>
+              <option value="archived"  ${course?.status === 'archived'  ? 'selected' : ''}>Arquivado</option>
+            </select>
+          </div>
         </div>
 
         <div id="c-error" class="form-error" style="display:none;margin-top:.5rem"></div>
@@ -170,8 +184,9 @@ function openCourseModal(course) {
 
     if (!title) { errEl.textContent = 'O título é obrigatório.'; errEl.style.display = 'block'; return; }
 
+    const status   = document.getElementById('c-status').value;
     const courseId = isEdit ? course.id : title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g,'').slice(0,30) + '-' + Date.now();
-    const data     = { title, subtitle, duration, category, passingScore: passing, order: isEdit ? (course.order ?? 0) : _courses.length };
+    const data     = { title, subtitle, duration, category, passingScore: passing, status, order: isEdit ? (course.order ?? 0) : _courses.length };
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
@@ -203,22 +218,24 @@ async function confirmDeleteCourse(course) {
 
 function openModuleModal(course, mod) {
   const isEdit = !!mod;
-  const quizJson = isEdit && mod.quiz ? JSON.stringify(mod.quiz, null, 2) : '[\n  {\n    "type": "mc",\n    "question": "Pergunta aqui?",\n    "options": ["Opção A", "Opção B", "Opção C", "Opção D"],\n    "answer": 0\n  }\n]';
+  _editQuiz = isEdit && Array.isArray(mod.quiz)
+    ? mod.quiz.map(q => ({ ...q, options: q.options ? [...q.options] : undefined }))
+    : [];
 
   const overlay = createOverlay(`
     <div class="modal modal-wide">
       <div class="modal-header">
-        <h3>${isEdit ? 'Editar módulo' : 'Novo módulo'} — ${course.title}</h3>
+        <h3>${isEdit ? 'Editar módulo' : 'Novo módulo'} — ${escHtml(course.title)}</h3>
         <button class="btn-icon" id="modal-close" aria-label="Fechar janela">${icon('x',16)}</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body modal-body-scroll">
         <label class="form-label">Título do módulo</label>
-        <input id="m-title" class="form-input" value="${mod?.title || ''}" placeholder="ex.: Introdução ao RGPD" />
+        <input id="m-title" class="form-input" value="${escHtml(mod?.title || '')}" placeholder="ex.: Introdução ao RGPD" />
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
           <div>
             <label class="form-label">Duração</label>
-            <input id="m-duration" class="form-input" value="${mod?.duration || ''}" placeholder="ex.: 45 min" />
+            <input id="m-duration" class="form-input" value="${escHtml(mod?.duration || '')}" placeholder="ex.: 45 min" />
           </div>
           <div>
             <label class="form-label">Nº de páginas</label>
@@ -227,13 +244,8 @@ function openModuleModal(course, mod) {
         </div>
 
         <div style="margin-top:1.5rem">
-          <label class="form-label">
-            Avaliação (formato JSON)
-            <span style="font-weight:400;color:var(--ink-3);font-size:12px;margin-left:.5rem">
-              type: "mc" (múltipla escolha) ou "tf" (verdadeiro/falso)
-            </span>
-          </label>
-          <textarea id="m-quiz" class="form-input" rows="12" style="font-family:monospace;font-size:12px;resize:vertical">${quizJson}</textarea>
+          <label class="form-label" style="margin-bottom:.5rem">Avaliação</label>
+          <div id="qb-root"></div>
         </div>
 
         <div id="m-error" class="form-error" style="display:none;margin-top:.5rem"></div>
@@ -244,22 +256,36 @@ function openModuleModal(course, mod) {
       </div>
     </div>`);
 
+  renderQuizEditor(document.getElementById('qb-root'));
+
   document.getElementById('modal-save').addEventListener('click', async () => {
     const title    = document.getElementById('m-title').value.trim();
     const duration = document.getElementById('m-duration').value.trim();
     const pages    = parseInt(document.getElementById('m-pages').value) || 1;
-    const quizRaw  = document.getElementById('m-quiz').value.trim();
     const errEl    = document.getElementById('m-error');
 
     if (!title) { errEl.textContent = 'O título é obrigatório.'; errEl.style.display = 'block'; return; }
 
-    let quiz = [];
-    try { quiz = JSON.parse(quizRaw); }
-    catch { errEl.textContent = 'JSON da avaliação inválido. Verifique a sintaxe.'; errEl.style.display = 'block'; return; }
+    // Validate quiz
+    for (let i = 0; i < _editQuiz.length; i++) {
+      const q = _editQuiz[i];
+      if (!q.question.trim()) {
+        errEl.textContent = `Pergunta ${i + 1} não tem texto.`; errEl.style.display = 'block'; return;
+      }
+      if (q.type === 'mc') {
+        const filled = q.options.filter(o => o.trim());
+        if (filled.length < 2) {
+          errEl.textContent = `Pergunta ${i + 1}: preencha pelo menos 2 opções.`; errEl.style.display = 'block'; return;
+        }
+        if (q.answer >= q.options.length || !q.options[q.answer]?.trim()) {
+          errEl.textContent = `Pergunta ${i + 1}: a resposta correta não está preenchida.`; errEl.style.display = 'block'; return;
+        }
+      }
+    }
 
     const moduleId = isEdit ? mod.id : 'm' + Date.now();
     const order    = isEdit ? (mod.order ?? 0) : (course.modules?.length ?? 0);
-    const data     = { title, duration, pages, quiz, order, content: mod?.content || [] };
+    const data     = { title, duration, pages, quiz: _editQuiz, order, content: mod?.content || [] };
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
@@ -273,6 +299,159 @@ function openModuleModal(course, mod) {
       errEl.textContent = 'Erro: ' + e.message; errEl.style.display = 'block'; btn.disabled = false;
     }
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Quiz Builder                                                         */
+/* ------------------------------------------------------------------ */
+
+function renderQuizEditor(root) {
+  root.innerHTML = `
+    <div class="quiz-builder">
+      ${_editQuiz.length === 0
+        ? `<p class="qb-empty">Ainda sem perguntas. Adicione a primeira!</p>`
+        : _editQuiz.map((q, i) => renderQCard(q, i)).join('')}
+      <button class="btn-sm primary" id="qb-add" style="margin-top:.5rem">
+        ${icon('plus',12)} Adicionar pergunta
+      </button>
+    </div>`;
+
+  root.querySelector('#qb-add').addEventListener('click', () => {
+    _editQuiz.push({ type: 'mc', question: '', options: ['', '', '', ''], answer: 0, explanation: '' });
+    renderQuizEditor(root);
+    root.querySelector('.qb-card:last-of-type')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  root.querySelectorAll('[data-qact="type"]').forEach(el => {
+    el.addEventListener('change', () => {
+      const i = parseInt(el.dataset.qi);
+      const old = _editQuiz[i];
+      _editQuiz[i] = {
+        type: el.value,
+        question: old.question || '',
+        answer: el.value === 'tf' ? true : 0,
+        options: el.value === 'mc' ? ['', '', '', ''] : undefined,
+        explanation: old.explanation || '',
+      };
+      renderQuizEditor(root);
+    });
+  });
+
+  root.querySelectorAll('[data-qact="question"]').forEach(el =>
+    el.addEventListener('input', () => { _editQuiz[parseInt(el.dataset.qi)].question = el.value; })
+  );
+  root.querySelectorAll('[data-qact="option"]').forEach(el =>
+    el.addEventListener('input', () => { _editQuiz[parseInt(el.dataset.qi)].options[parseInt(el.dataset.oi)] = el.value; })
+  );
+  root.querySelectorAll('[data-qact="correct-mc"]').forEach(el =>
+    el.addEventListener('change', () => { _editQuiz[parseInt(el.dataset.qi)].answer = parseInt(el.value); })
+  );
+  root.querySelectorAll('[data-qact="correct-tf"]').forEach(el =>
+    el.addEventListener('change', () => { _editQuiz[parseInt(el.dataset.qi)].answer = el.value === 'true'; })
+  );
+  root.querySelectorAll('[data-qact="explanation"]').forEach(el =>
+    el.addEventListener('input', () => { _editQuiz[parseInt(el.dataset.qi)].explanation = el.value; })
+  );
+
+  root.querySelectorAll('[data-qact="del"]').forEach(el => {
+    el.addEventListener('click', () => {
+      _editQuiz.splice(parseInt(el.dataset.qi), 1);
+      renderQuizEditor(root);
+    });
+  });
+  root.querySelectorAll('[data-qact="add-opt"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const i = parseInt(el.dataset.qi);
+      if (_editQuiz[i].options.length < 6) { _editQuiz[i].options.push(''); renderQuizEditor(root); }
+    });
+  });
+  root.querySelectorAll('[data-qact="del-opt"]').forEach(el => {
+    el.addEventListener('click', () => {
+      const i = parseInt(el.dataset.qi), oi = parseInt(el.dataset.oi);
+      if (_editQuiz[i].options.length > 2) {
+        _editQuiz[i].options.splice(oi, 1);
+        if (_editQuiz[i].answer >= _editQuiz[i].options.length) _editQuiz[i].answer = 0;
+        renderQuizEditor(root);
+      }
+    });
+  });
+}
+
+function renderQCard(q, i) {
+  const isMC = q.type === 'mc';
+  return `
+    <div class="qb-card">
+      <div class="qb-card-top">
+        <span class="qb-num">P${i + 1}</span>
+        <select class="form-input qb-type-select" data-qact="type" data-qi="${i}">
+          <option value="mc" ${q.type === 'mc' ? 'selected' : ''}>Múltipla escolha</option>
+          <option value="tf" ${q.type === 'tf' ? 'selected' : ''}>Verdadeiro / Falso</option>
+        </select>
+        <button class="btn-icon danger" data-qact="del" data-qi="${i}" title="Remover pergunta" aria-label="Remover pergunta">
+          ${icon('trash',13)}
+        </button>
+      </div>
+
+      <input class="form-input" data-qact="question" data-qi="${i}"
+             value="${escHtml(q.question)}" placeholder="Escreva a pergunta aqui…"
+             style="margin-top:.75rem" />
+
+      ${isMC ? renderMCOptions(q, i) : renderTFOptions(q, i)}
+
+      <input class="form-input qb-explanation" data-qact="explanation" data-qi="${i}"
+             value="${escHtml(q.explanation || '')}"
+             placeholder="Explicação (opcional) — mostrada ao colaborador quando erra" />
+    </div>`;
+}
+
+function renderMCOptions(q, i) {
+  const opts = q.options.map((opt, oi) => `
+    <div class="qb-option-row">
+      <input type="radio" name="qb-${i}" data-qact="correct-mc" data-qi="${i}" value="${oi}"
+             ${q.answer === oi ? 'checked' : ''} class="qb-radio" title="Resposta correta" />
+      <input class="form-input qb-opt-input" data-qact="option" data-qi="${i}" data-oi="${oi}"
+             value="${escHtml(opt)}" placeholder="Opção ${String.fromCharCode(65 + oi)}" />
+      ${q.options.length > 2
+        ? `<button class="btn-icon" data-qact="del-opt" data-qi="${i}" data-oi="${oi}"
+                   title="Remover opção" aria-label="Remover opção">${icon('x',11)}</button>`
+        : ''}
+    </div>`).join('');
+
+  return `
+    <div class="qb-options">
+      <div class="qb-hint">${icon('info',11,'var(--ink-3)')} Selecione o círculo para marcar a resposta correta</div>
+      ${opts}
+      ${q.options.length < 6
+        ? `<button class="btn-sm" data-qact="add-opt" data-qi="${i}" style="margin-top:.25rem">
+             ${icon('plus',11)} Adicionar opção
+           </button>`
+        : ''}
+    </div>`;
+}
+
+function renderTFOptions(q, i) {
+  return `
+    <div class="qb-tf-row">
+      <label class="qb-tf-label ${q.answer === true ? 'qb-tf-selected' : ''}">
+        <input type="radio" name="qb-${i}" data-qact="correct-tf" data-qi="${i}" value="true"
+               ${q.answer === true ? 'checked' : ''} />
+        ${icon('check',14,'currentColor')} Verdadeiro
+      </label>
+      <label class="qb-tf-label ${q.answer === false ? 'qb-tf-selected' : ''}">
+        <input type="radio" name="qb-${i}" data-qact="correct-tf" data-qi="${i}" value="false"
+               ${q.answer === false ? 'checked' : ''} />
+        ${icon('x',14,'currentColor')} Falso
+      </label>
+    </div>`;
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function statusLabel(status) {
+  const map = { draft: 'Rascunho', published: 'Publicado', archived: 'Arquivado' };
+  return map[status] || 'Rascunho';
 }
 
 async function confirmDeleteModule(course, mod) {

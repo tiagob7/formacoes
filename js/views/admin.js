@@ -414,8 +414,50 @@ async function renderProgress(container) {
     return;
   }
 
+  // Global KPIs
+  const totalColabs   = allProgress.length;
+  let totalDoneGlobal = 0, totalModsGlobal = 0, scoresSum = 0, scoresCount = 0;
+  let completedAll = 0;
+  allProgress.forEach(({ progress: prog }) => {
+    let allCourseDone = true;
+    courses.forEach(course => {
+      const cp = prog?.[course.id] || {};
+      course.modules.forEach(m => {
+        if (cp[m.id]?.quizPassed) totalDoneGlobal++;
+        if (cp[m.id]?.bestScore != null) { scoresSum += cp[m.id].bestScore; scoresCount++; }
+        totalModsGlobal++;
+      });
+      if (course.modules.length && !course.modules.every(m => cp[m.id]?.quizPassed)) allCourseDone = false;
+    });
+    if (allCourseDone && courses.length) completedAll++;
+  });
+  const globalPct  = totalModsGlobal ? Math.round((totalDoneGlobal / totalModsGlobal) * 100) : 0;
+  const avgScore   = scoresCount ? Math.round(scoresSum / scoresCount) : null;
+
   container.innerHTML = `
-    <h3 style="margin-bottom:1rem;font-size:15px;color:var(--ink-2)">Resumo por formação</h3>
+    <div class="kpi-summary-row">
+      <div class="kpi-summary-card">
+        <div class="kpi-summary-n">${totalColabs}</div>
+        <div class="kpi-summary-l">Colaboradores ativos</div>
+      </div>
+      <div class="kpi-summary-card">
+        <div class="kpi-summary-n" style="color:var(--cyan-2)">${globalPct}<span style="font-size:16px">%</span></div>
+        <div class="kpi-summary-l">Conclusão global</div>
+      </div>
+      <div class="kpi-summary-card">
+        <div class="kpi-summary-n" style="color:var(--green)">${completedAll}</div>
+        <div class="kpi-summary-l">Concluíram tudo</div>
+      </div>
+      <div class="kpi-summary-card">
+        <div class="kpi-summary-n" style="color:var(--amber)">${avgScore != null ? avgScore + '%' : '—'}</div>
+        <div class="kpi-summary-l">Nota média</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h3 style="font-size:15px;color:var(--ink-2)">Resumo por formação</h3>
+      <button class="btn-sm primary" id="btn-export-csv">${icon('download',13)} Exportar CSV</button>
+    </div>
     <div class="progress-cards" id="progress-cards"></div>
     <h3 style="margin:2rem 0 1rem;font-size:15px;color:var(--ink-2)">Detalhe por colaborador</h3>
     <div class="admin-table-wrap">
@@ -454,6 +496,31 @@ async function renderProgress(container) {
         </div>
       </div>`;
   }).join('');
+
+  // CSV export
+  document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+    const header = ['Colaborador', 'Email', ...courses.map(c => c.title), 'Global (%)'];
+    const rows = allProgress
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+      .map(({ email, nome, progress: prog }) => {
+        let totalDone = 0, totalMods = 0;
+        const cols = courses.map(course => {
+          const cp   = prog?.[course.id] || {};
+          const done = course.modules.filter(m => cp[m.id]?.quizPassed).length;
+          const tot  = course.modules.length;
+          totalDone += done; totalMods += tot;
+          return tot ? Math.round((done / tot) * 100) + '%' : '—';
+        });
+        const global = totalMods ? Math.round((totalDone / totalMods) * 100) + '%' : '—';
+        return [nome || email, email, ...cols, global];
+      });
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `progresso_formacoes_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  });
 
   // Tabela por colaborador
   document.getElementById('progress-tbody').innerHTML = allProgress

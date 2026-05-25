@@ -3,7 +3,7 @@
  * Initialises the router, checks for an existing session,
  * and mounts the correct view.
  */
-import { route, initRouter, navigate } from './router.js';
+import { route, initRouter, navigate, currentRouteVersion } from './router.js';
 import { getState, setState }           from './state.js';
 import { getSessionUser, loadProgress, hasRole } from './firebase-service.js';
 import { renderShell, wireShell }       from './ui.js';
@@ -15,6 +15,7 @@ import { renderQuiz }                   from './views/quiz.js';
 import { renderResults }                from './views/results.js';
 import { renderAdmin }                  from './views/admin.js';
 import { renderContentManager }         from './views/content-manager.js';
+import { renderCertificates }           from './views/certificates.js';
 
 const app = document.getElementById('app');
 
@@ -33,6 +34,10 @@ function mountShell(activeView) {
   app.innerHTML = `<div class="app-shell">${renderShell(activeView)}<main class="main-area" id="main"></main></div>`;
   wireShell();
   return document.getElementById('main');
+}
+
+function isCurrentRoute(version) {
+  return currentRouteVersion() === version;
 }
 
 /* ------------------------------------------------------------------ */
@@ -76,14 +81,26 @@ route('results/:courseId/:moduleId', async (params) => {
   await renderResults(main, params);
 });
 
+route('certificates', async () => {
+  const v = currentRouteVersion();
+  if (!requireAuth()) return;
+  if (!isCurrentRoute(v)) return;
+  const main = mountShell('certificates');
+  await renderCertificates(main);
+});
+
 route('admin', async () => {
+  const v = currentRouteVersion();
   if (!requireAuth('administrador')) return;
+  if (!isCurrentRoute(v)) return;
   const main = mountShell('admin');
   await renderAdmin(main);
 });
 
 route('conteudos', async () => {
+  const v = currentRouteVersion();
   if (!requireAuth('gestor_conteudos')) return;
+  if (!isCurrentRoute(v)) return;
   const main = mountShell('conteudos');
   await renderContentManager(main);
 });

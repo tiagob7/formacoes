@@ -51,15 +51,15 @@ Objetivo: tornar a experiencia mais clara, responsiva e eficiente para quem faz 
 
 | Estado | Prioridade | Melhoria | Criterio de conclusao |
 |---|---:|---|---|
-| [~] | P0 | Responsividade mobile/tablet | Login, dashboard, modulo, quiz e resultados funcionam em ecras pequenos |
+| [x] | P0 | Responsividade mobile/tablet | Login, dashboard, modulo, quiz e resultados funcionam em ecras pequenos |
 | [x] | P1 | Sidebar colapsavel ou navegacao mobile | Colaborador consegue navegar confortavelmente em mobile |
 | [x] | P1 | Filtros no dashboard | Filtrar por categoria, estado e pesquisa textual |
 | [x] | P1 | Pesquisa real no dashboard | Campo de pesquisa filtra formacoes por titulo, subtitulo e categoria |
 | [x] | P1 | Pagina de detalhe da formacao | Antes do modulo, mostrar objetivos, duracao, modulos, progresso e CTA |
 | [x] | P1 | Melhorar estado "continuar onde parou" | Retoma o modulo correto e mostra progresso contextual |
 | [x] | P1 | Melhorar leitor de modulo | Estados claros: por ler, lido, quiz disponivel, concluido |
-| [ ] | P2 | Modo rever formacao | Rever modulo concluido sem parecer que esta a refazer progresso |
-| [ ] | P2 | Melhorar feedback visual do quiz | Revisao mais clara, com explicacoes e resumo por tema |
+| [x] | P2 | Modo rever formacao | Rever modulo concluido sem parecer que esta a refazer progresso |
+| [x] | P2 | Melhorar feedback visual do quiz | Revisao mais clara, com explicacoes e resumo por tema |
 | [x] | P2 | Acessibilidade basica | Foco visivel, labels, contraste, navegacao por teclado |
 
 ### Notas
@@ -77,8 +77,8 @@ Objetivo: transformar a plataforma num sistema completo de aprendizagem e certif
 |---|---:|---|---|
 | [ ] | P1 | Certificados PDF | Formacao concluida gera certificado descarregavel |
 | [ ] | P1 | Pagina "Certificados" | Colaborador ve certificados ganhos e pendentes |
-| [ ] | P1 | Historico de tentativas | Guardar tentativas, notas, data e melhor resultado |
-| [ ] | P1 | Melhor nota por modulo | Progresso mostra ultima nota e melhor nota |
+| [~] | P1 | Historico de tentativas | Contador de tentativas e melhor nota guardados; historico completo por data e tentativa pendente |
+| [x] | P1 | Melhor nota por modulo | bestScore calculado e apresentado na pagina de resultados |
 | [ ] | P1 | Prazos de formacoes obrigatorias | Formacoes podem ter data limite |
 | [ ] | P2 | Notificacoes internas | Alertas para prazos, novas formacoes e certificados |
 | [ ] | P2 | Formacoes obrigatorias/opcionais | Catalogo distingue atribuicoes obrigatorias e opcionais |
@@ -99,12 +99,12 @@ Objetivo: dar autonomia real a RH/gestores sem exigir edicao tecnica.
 
 | Estado | Prioridade | Melhoria | Criterio de conclusao |
 |---|---:|---|---|
-| [ ] | P0 | Editor visual de quiz | Gestor cria perguntas sem editar JSON |
-| [ ] | P1 | Validacao de quiz | Nao permite guardar perguntas incompletas ou sem resposta correta |
+| [x] | P0 | Editor visual de quiz | Gestor cria perguntas sem editar JSON |
+| [x] | P1 | Validacao de quiz | Nao permite guardar perguntas incompletas ou sem resposta correta |
 | [ ] | P1 | Editor de conteudo do modulo | Permitir texto estruturado alem de PDF |
-| [ ] | P1 | Estados de publicacao | Rascunho, publicado, arquivado |
+| [x] | P1 | Estados de publicacao | Rascunho, publicado, arquivado — dashboard filtra apenas publicados |
 | [ ] | P1 | Importacao de colaboradores com validacao | Excel/CSV mostra erros antes de importar |
-| [ ] | P1 | Exportar relatorios CSV/Excel | Admin exporta progresso por colaborador e por formacao |
+| [x] | P1 | Exportar relatorios CSV/Excel | Admin exporta progresso por colaborador e por formacao |
 | [ ] | P1 | Dashboard admin com KPIs | Taxa de conclusao, pendentes, atrasados e medias |
 | [ ] | P2 | Auditoria de alteracoes | Registar quem criou/editou cursos, modulos e utilizadores |
 | [ ] | P2 | Reordenar cursos e modulos | Drag/drop ou controlos de ordem |
