@@ -1,19 +1,45 @@
 import { icon }                                      from '../icons.js';
-import { getCourse, getModule, courseProgress }       from '../data.js';
+import { getCourseById, getModuleById, courseProgress } from '../course-service.js';
 import { getState, updateModuleProgress }             from '../state.js';
 import { navigate }                                   from '../router.js';
 import { saveModuleProgress }                         from '../firebase-service.js';
+import { renderLoadingState, renderEmptyState, renderInlineNotice } from '../ui.js';
 
 export async function renderResults(container, { courseId, moduleId }) {
+  container.innerHTML = renderLoadingState('A calcular resultados...');
+
   const { user, progress, quizAnswers, quizSubmitted } = getState();
 
   if (!quizSubmitted) { navigate(`/module/${courseId}/${moduleId}`); return; }
 
-  const course    = getCourse(courseId);
-  const mod       = getModule(courseId, moduleId);
-  if (!course || !mod) { navigate('/dashboard'); return; }
+  let course = null;
+  let mod = null;
+  try {
+    course = await getCourseById(courseId);
+    mod = await getModuleById(courseId, moduleId);
+  } catch (err) {
+    console.error(err);
+  }
+  if (!course || !mod) {
+    container.innerHTML = renderEmptyState({
+      iconName: 'info',
+      title: 'Resultados indisponíveis',
+      message: 'A formação ou o módulo associado pode ter sido removido.',
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao dashboard</button>`,
+    });
+    return;
+  }
 
   const questions = mod.quiz;
+  if (!questions.length) {
+    container.innerHTML = renderEmptyState({
+      iconName: 'info',
+      title: 'Avaliação sem perguntas',
+      message: 'Não existem respostas para corrigir neste módulo.',
+      action: `<button class="btn-next" onclick="navigate('/module/${courseId}/${moduleId}')">Voltar ao módulo</button>`,
+    });
+    return;
+  }
   const answers   = quizAnswers;
 
   // Score calculation
@@ -57,6 +83,11 @@ export async function renderResults(container, { courseId, moduleId }) {
         <h1 class="topbar-title">Resultados da Avaliação</h1>
       </div>
     </div>
+    ${!user?.email ? renderInlineNotice({
+      type: 'warning',
+      title: 'Sessão sem email',
+      message: 'O resultado foi calculado neste dispositivo, mas pode não ficar associado ao colaborador.',
+    }) : ''}
 
     <div class="results-layout">
       <!-- Score card -->

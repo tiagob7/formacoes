@@ -1,16 +1,32 @@
 import { icon }                                          from '../icons.js';
-import { getCourse, getModule, courseProgress }           from '../data.js';
+import { getCourseById, getModuleById, courseProgress }   from '../course-service.js';
 import { getState, setState, updateModuleProgress }       from '../state.js';
 import { navigate }                                       from '../router.js';
-import { saveModuleProgress, getModulePdfUrl, uploadModulePDF, hasRole } from '../firebase-service.js';
-import { showToast }                                      from '../ui.js';
+import { saveModuleProgress, getModulePdfUrl, uploadModulePDF } from '../firebase-service.js';
+import { showToast, renderLoadingState, renderEmptyState, renderInlineNotice } from '../ui.js';
 
 export async function renderModule(container, { courseId, moduleId }) {
+  container.innerHTML = renderLoadingState('A carregar módulo...');
+
   setState({ courseId, moduleId, view: 'module' });
   const { user, progress } = getState();
-  const course  = getCourse(courseId);
-  const mod     = getModule(courseId, moduleId);
-  if (!course || !mod) { navigate('/dashboard'); return; }
+  let course = null;
+  let mod = null;
+  try {
+    course = await getCourseById(courseId);
+    mod = await getModuleById(courseId, moduleId);
+  } catch (err) {
+    console.error(err);
+  }
+  if (!course || !mod) {
+    container.innerHTML = renderEmptyState({
+      iconName: 'info',
+      title: 'Módulo não encontrado',
+      message: 'O módulo pode ter sido removido ou ainda não estar publicado.',
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao dashboard</button>`,
+    });
+    return;
+  }
 
   const cp       = progress?.[courseId]?.[moduleId] || {};
   const isRead   = !!cp.read;
@@ -18,7 +34,8 @@ export async function renderModule(container, { courseId, moduleId }) {
 
   // Fetch PDF URL from Firebase (may be null)
   let pdfUrl = null;
-  try { pdfUrl = await getModulePdfUrl(courseId, moduleId); } catch {}
+  let pdfError = false;
+  try { pdfUrl = await getModulePdfUrl(courseId, moduleId); } catch { pdfError = true; }
 
   // Calculate sidebar progress
   const { completed, total } = courseProgress(course, progress);
@@ -26,6 +43,11 @@ export async function renderModule(container, { courseId, moduleId }) {
 
   container.innerHTML = `
     ${topBar(course, courseId)}
+    ${pdfError ? renderInlineNotice({
+      type: 'warning',
+      title: 'PDF indisponível',
+      message: 'Não foi possível obter o PDF deste módulo. Está disponível o conteúdo alternativo publicado.',
+    }) : ''}
     <div class="module-layout">
       ${moduleSidebar(course, moduleId, progress, pct, completed, total)}
       <div class="module-main">
@@ -195,7 +217,8 @@ function pdfToolbar(mod, course, user, pdfUrl) {
 }
 
 function renderDocumentContent(mod, course) {
-  const blocks = mod.content.map(block => {
+  const hasContent = Array.isArray(mod.content) && mod.content.length > 0;
+  const blocks = hasContent ? mod.content.map(block => {
     switch (block.type) {
       case 'h1':      return `<h2 class="doc-h1">${block.text}</h2>`;
       case 'lead':    return `<p class="doc-lead">${block.text}</p>`;
@@ -209,7 +232,12 @@ function renderDocumentContent(mod, course) {
         </div>`;
       default: return '';
     }
-  }).join('');
+  }).join('') : `
+    <div class="doc-empty">
+      <h2 class="doc-h1">${mod.title}</h2>
+      <p class="doc-lead">Este módulo ainda não tem conteúdo publicado.</p>
+      <p class="doc-p">Quando o gestor carregar um PDF ou adicionar conteúdo estruturado, ficará disponível aqui para os colaboradores.</p>
+    </div>`;
 
   return `
     <div class="pdf-page">

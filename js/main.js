@@ -9,6 +9,7 @@ import { getSessionUser, loadProgress, hasRole } from './firebase-service.js';
 import { renderShell, wireShell }       from './ui.js';
 import { renderLogin }                  from './views/login.js';
 import { renderDashboard }              from './views/dashboard.js';
+import { renderCourseDetail }           from './views/course-detail.js';
 import { renderModule }                 from './views/module.js';
 import { renderQuiz }                   from './views/quiz.js';
 import { renderResults }                from './views/results.js';
@@ -29,14 +30,8 @@ function requireAuth(requiredRole = null) {
 }
 
 function mountShell(activeView) {
-  // Only rebuild shell if not already present
-  if (!document.querySelector('.app-shell')) {
-    app.innerHTML = `<div class="app-shell">${renderShell(activeView)}<main class="main-area" id="main"></main></div>`;
-    wireShell();
-  } else {
-    // Update active nav item
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  }
+  app.innerHTML = `<div class="app-shell">${renderShell(activeView)}<main class="main-area" id="main"></main></div>`;
+  wireShell();
   return document.getElementById('main');
 }
 
@@ -51,10 +46,16 @@ route('login', () => {
   renderLogin(app);
 });
 
-route('dashboard', () => {
+route('dashboard', async () => {
   if (!requireAuth()) return;
   const main = mountShell('dashboard');
-  renderDashboard(main);
+  await renderDashboard(main);
+});
+
+route('course/:courseId', async (params) => {
+  if (!requireAuth()) return;
+  const main = mountShell('dashboard');
+  await renderCourseDetail(main, params);
 });
 
 route('module/:courseId/:moduleId', async (params) => {
@@ -63,10 +64,10 @@ route('module/:courseId/:moduleId', async (params) => {
   await renderModule(main, params);
 });
 
-route('quiz/:courseId/:moduleId', (params) => {
+route('quiz/:courseId/:moduleId', async (params) => {
   if (!requireAuth()) return;
   const main = mountShell('quiz');
-  renderQuiz(main, params);
+  await renderQuiz(main, params);
 });
 
 route('results/:courseId/:moduleId', async (params) => {

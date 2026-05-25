@@ -1,16 +1,42 @@
-import { icon }                                           from '../icons.js';
-import { COURSES, courseProgress, getResumeCourse, globalProgress } from '../data.js';
-import { navigate }                                        from '../router.js';
-import { getState }                                        from '../state.js';
+import { icon } from '../icons.js';
+import { loadCourses, courseProgress, getResumeCourse, globalProgress, getCoursesStatus } from '../course-service.js';
+import { navigate } from '../router.js';
+import { getState } from '../state.js';
+import { renderLoadingState, renderInlineNotice, renderEmptyState } from '../ui.js';
 
-export function renderDashboard(container) {
+export async function renderDashboard(container) {
+  container.innerHTML = renderLoadingState('A carregar formações...');
+
   const { user, progress } = getState();
-  const overall            = globalProgress(progress);
-  const resumeCourse       = getResumeCourse(progress);
-  const firstName          = user.name.split(' ')[0];
+  let courses = [];
+  try {
+    courses = await loadCourses();
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = renderEmptyState({
+      iconName: 'x',
+      title: 'Não foi possível carregar as formações',
+      message: 'Atualize a página ou tente novamente dentro de instantes.',
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Tentar novamente</button>`,
+    });
+    return;
+  }
+
+  const coursesStatus      = getCoursesStatus();
+  const overall            = globalProgress(courses, progress);
+  const resumeCourse       = getResumeCourse(courses, progress);
+  const firstName          = (user.name || 'Colaborador').split(' ')[0];
 
   container.innerHTML = `
     ${topBar(`Olá, ${firstName}`, 'Aqui está um resumo do seu percurso formativo.')}
+
+    ${coursesStatus.fallback ? renderInlineNotice({
+      type: 'warning',
+      title: 'Catálogo local em utilização',
+      message: coursesStatus.error
+        ? 'Não foi possível ligar ao Firebase. As formações apresentadas podem não refletir as últimas alterações.'
+        : 'Ainda não existem formações publicadas no Firebase. Está a ver o catálogo de demonstração.',
+    }) : ''}
 
     <div class="dashboard-body">
       <!-- Hero row -->
@@ -22,7 +48,7 @@ export function renderDashboard(container) {
             <p class="banner-lead">
               ${resumeCourse
                 ? 'Está mais perto de completar esta formação. Retome o módulo onde parou.'
-                : 'Existem ' + COURSES.length + ' formações à sua espera. Comece pela mais relevante para o seu departamento.'}
+                : 'Existem ' + courses.length + ' formações à sua espera. Comece pela mais relevante para o seu departamento.'}
             </p>
             <button class="banner-btn" id="banner-cta">
               ${icon('play', 14)}
@@ -55,40 +81,92 @@ export function renderDashboard(container) {
         <div class="section-head">
           <div>
             <h2 class="section-title">Formações disponíveis</h2>
-            <div class="section-sub">${COURSES.length} formações atribuídas ao seu perfil</div>
+            <div class="section-sub" id="courses-count">${courses.length} formações atribuídas ao seu perfil</div>
           </div>
+          <div class="course-filters" id="course-filters"></div>
         </div>
         <div class="courses-grid" id="courses-grid"></div>
+        <div class="empty-state small" id="courses-empty" style="display:none">
+          <div class="empty-state-inner">
+            <div class="empty-state-icon">${icon('search', 28, 'var(--ink-3)')}</div>
+            <div class="empty-state-title">Sem formações encontradas</div>
+            <div class="empty-state-sub">Ajuste a pesquisa ou escolha outro filtro.</div>
+          </div>
+        </div>
       </section>
     </div>`;
 
   // Banner CTA
   document.getElementById('banner-cta').addEventListener('click', () => {
-    const target = resumeCourse || COURSES[0];
-    navigate(`/module/${target.id}/${target.modules[0].id}`);
+    const target = resumeCourse || courses[0];
+    if (target?.modules?.[0]) navigate(`/module/${target.id}/${target.modules[0].id}`);
   });
 
-  // Render cards
+  const searchInput = document.querySelector('.search-input');
+  const filters = document.getElementById('course-filters');
   const grid = document.getElementById('courses-grid');
-  COURSES.forEach(course => {
-    const p   = courseProgress(course, progress);
-    const el  = document.createElement('article');
-    el.className = 'course-card';
-    el.innerHTML = courseCard(course, p);
-    el.querySelector('.course-cta').addEventListener('click', (e) => {
-      e.stopPropagation();
-      openCourse(course, progress);
+  const categories = ['Todas', ...new Set(courses.map(course => course.category).filter(Boolean))];
+  let activeCategory = 'Todas';
+  let query = '';
+
+  filters.innerHTML = categories.map((category, index) => `
+    <button class="filter-chip ${index === 0 ? 'active' : ''}" data-category="${category}">
+      ${category}
+    </button>
+  `).join('');
+
+  filters.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.category;
+      filters.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      renderCourseGrid();
     });
-    el.addEventListener('click', () => openCourse(course, progress));
-    grid.appendChild(el);
   });
+
+  searchInput.addEventListener('input', e => {
+    query = e.target.value.trim().toLowerCase();
+    renderCourseGrid();
+  });
+
+  renderCourseGrid();
+
+  function renderCourseGrid() {
+    const filteredCourses = courses.filter(course => {
+      const matchesCategory = activeCategory === 'Todas' || course.category === activeCategory;
+      const haystack = `${course.title} ${course.subtitle} ${course.category}`.toLowerCase();
+      return matchesCategory && (!query || haystack.includes(query));
+    });
+
+    document.getElementById('courses-count').textContent =
+      filteredCourses.length === courses.length
+        ? `${courses.length} formações atribuídas ao seu perfil`
+        : `${filteredCourses.length} de ${courses.length} formações`;
+
+    renderCards(filteredCourses);
+  }
+
+  function renderCards(list) {
+    const empty = document.getElementById('courses-empty');
+    grid.innerHTML = '';
+    empty.style.display = list.length ? 'none' : 'grid';
+    list.forEach(course => {
+      const p   = courseProgress(course, progress);
+      const el  = document.createElement('article');
+      el.className = 'course-card';
+      el.innerHTML = courseCard(course, p);
+      el.querySelector('.course-cta').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCourse(course);
+      });
+      el.addEventListener('click', () => openCourse(course));
+      grid.appendChild(el);
+    });
+  }
 }
 
-function openCourse(course, progress) {
-  // Navigate to the first incomplete module, or first module if all done
-  const cp = progress[course.id] || {};
-  const nextModule = course.modules.find(m => !cp[m.id]?.quizPassed) || course.modules[0];
-  navigate(`/module/${course.id}/${nextModule.id}`);
+function openCourse(course) {
+  navigate(`/course/${course.id}`);
 }
 
 function topBar(title, subtitle) {
@@ -103,10 +181,6 @@ function topBar(title, subtitle) {
           ${icon('search', 15, '#9CA3AF')}
           <input class="search-input" placeholder="Pesquisar formações…" />
         </div>
-        <button class="icon-btn">
-          ${icon('bell', 17)}
-          <span class="notif-dot"></span>
-        </button>
       </div>
     </div>`;
 }

@@ -2,6 +2,7 @@ import { icon }       from '../icons.js';
 import { getState }   from '../state.js';
 import { showToast }  from '../ui.js';
 import { COURSES }    from '../data.js';
+import { clearCoursesCache } from '../course-service.js';
 import { getCoursesFromDB, saveCourse, deleteCourseFromDB, saveModule, deleteModuleFromDB, uploadModulePDF, getModulePdfUrl } from '../firebase-service.js';
 
 let _courses = [];
@@ -176,6 +177,7 @@ function openCourseModal(course) {
     btn.disabled = true;
     try {
       await saveCourse(courseId, data);
+      clearCoursesCache();
       showToast(`Formação ${isEdit ? 'atualizada' : 'criada'}.`, 'success');
       overlay.remove();
       await loadAndRenderCourses();
@@ -189,6 +191,7 @@ async function confirmDeleteCourse(course) {
   if (!confirm(`Eliminar a formação "${course.title}"? Esta ação não pode ser desfeita.`)) return;
   try {
     await deleteCourseFromDB(course.id);
+    clearCoursesCache();
     showToast('Formação eliminada.', 'success');
     await loadAndRenderCourses();
   } catch (e) { showToast('Erro ao eliminar: ' + e.message, 'error'); }
@@ -262,6 +265,7 @@ function openModuleModal(course, mod) {
     btn.disabled = true;
     try {
       await saveModule(course.id, moduleId, data);
+      clearCoursesCache();
       showToast(`Módulo ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();
       await loadAndRenderCourses();
@@ -275,6 +279,7 @@ async function confirmDeleteModule(course, mod) {
   if (!confirm(`Eliminar o módulo "${mod.title}"?`)) return;
   try {
     await deleteModuleFromDB(course.id, mod.id);
+    clearCoursesCache();
     showToast('Módulo eliminado.', 'success');
     await loadAndRenderCourses();
   } catch (e) { showToast('Erro ao eliminar: ' + e.message, 'error'); }

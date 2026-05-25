@@ -1,7 +1,7 @@
 import { icon }      from '../icons.js';
 import { getState }  from '../state.js';
 import { showToast } from '../ui.js';
-import { COURSES }   from '../data.js';
+import { loadCourses } from '../course-service.js';
 import {
   getEmployees, createEmployee, updateEmployee, deleteEmployee,
   importWhitelist, getWhitelist, deleteWhitelistEntry,
@@ -248,7 +248,7 @@ async function renderWhitelist(container) {
   list.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
 
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start">
+    <div class="whitelist-layout">
 
       <!-- Tabela -->
       <div>
@@ -402,10 +402,11 @@ function setupWhitelistImport(existingList) {
 /* ================================================================== */
 
 async function renderProgress(container) {
-  let employees = [], allProgress = [];
+  let employees = [], allProgress = [], courses = [];
   try {
     employees   = await getEmployees();
     allProgress = await getAllProgress(employees.filter(e => e.ativo));
+    courses     = await loadCourses();
   } catch (e) { console.warn(e); }
 
   if (!allProgress.length) {
@@ -421,7 +422,7 @@ async function renderProgress(container) {
       <table class="admin-table">
         <thead><tr>
           <th>Colaborador</th>
-          ${COURSES.map(c => `<th style="min-width:110px;white-space:nowrap">${c.title.split(' ').slice(0,3).join(' ')}</th>`).join('')}
+          ${courses.map(c => `<th style="min-width:110px;white-space:nowrap">${c.title.split(' ').slice(0,3).join(' ')}</th>`).join('')}
           <th>Global</th>
         </tr></thead>
         <tbody id="progress-tbody"></tbody>
@@ -429,7 +430,7 @@ async function renderProgress(container) {
     </div>`;
 
   // Cards de resumo
-  document.getElementById('progress-cards').innerHTML = COURSES.map(course => {
+  document.getElementById('progress-cards').innerHTML = courses.map(course => {
     const modCount = course.modules.length;
     let passed = 0, possible = 0;
     allProgress.forEach(({ progress }) => {
@@ -439,6 +440,7 @@ async function renderProgress(container) {
     });
     const pct      = possible ? Math.round((passed / possible) * 100) : 0;
     const finished = allProgress.filter(({ progress }) => {
+      if (!course.modules.length) return false;
       const cp = progress?.[course.id] || {};
       return course.modules.every(m => cp[m.id]?.quizPassed);
     }).length;
@@ -458,12 +460,12 @@ async function renderProgress(container) {
     .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
     .map(({ email, nome, progress }) => {
       let totalDone = 0, totalMods = 0;
-      const cols = COURSES.map(course => {
+      const cols = courses.map(course => {
         const cp   = progress?.[course.id] || {};
         const done = course.modules.filter(m => cp[m.id]?.quizPassed).length;
         const tot  = course.modules.length;
         totalDone += done; totalMods += tot;
-        const pct   = Math.round((done / tot) * 100);
+        const pct   = tot ? Math.round((done / tot) * 100) : 0;
         const color = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--amber)' : 'var(--line)';
         return `<td>
           <div style="display:flex;align-items:center;gap:6px">

@@ -34,7 +34,6 @@ export function renderShell(activeView) {
       <nav class="sidebar-nav">
         <div class="nav-label">PRINCIPAL</div>
         ${navItem('home',  'Dashboard', activeView === 'dashboard', '/dashboard')}
-        ${navItem('award', 'Certificados', false, null, '2')}
         ${adminNav}
         ${gestorNav}
       </nav>
@@ -80,6 +79,41 @@ export function showToast(message, type = 'info') {
   document.body.appendChild(toast);
 
   toastTimer = setTimeout(() => toast.remove(), 4000);
+}
+
+/* ------------------------------------------------------------------ */
+/* Reusable view states                                                 */
+/* ------------------------------------------------------------------ */
+export function renderLoadingState(message = 'A carregar dados...') {
+  return `
+    <div class="view-state view-state-loading" role="status" aria-live="polite">
+      <span class="spinner"></span>
+      <div class="view-state-title">${message}</div>
+    </div>`;
+}
+
+export function renderEmptyState({ iconName = 'info', title, message, action = '' }) {
+  return `
+    <div class="empty-state">
+      <div class="empty-state-inner">
+        <div class="empty-state-icon">${icon(iconName, 32, 'var(--ink-3)')}</div>
+        <div class="empty-state-title">${title}</div>
+        <div class="empty-state-sub">${message}</div>
+        ${action}
+      </div>
+    </div>`;
+}
+
+export function renderInlineNotice({ type = 'info', title, message }) {
+  const iconName = type === 'warning' ? 'info' : type === 'error' ? 'x' : 'info';
+  return `
+    <div class="inline-notice ${type}" role="status">
+      ${icon(iconName, 16)}
+      <div>
+        <strong>${title}</strong>
+        <span>${message}</span>
+      </div>
+    </div>`;
 }
 
 /* ------------------------------------------------------------------ */

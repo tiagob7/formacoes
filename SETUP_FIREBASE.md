@@ -1,152 +1,227 @@
-# Setup Firebase - Formações AlgarTempo
+# Setup Firebase - Plataforma de Formacoes
 
-## 1. Ativar Serviços no Firebase Console
+Este guia descreve a configuracao Firebase usada pela plataforma atual.
 
-### 🔐 Authentication
-1. Vai a: **Authentication** → **Sign-in method**
-2. Clica em **Email/Password**
-3. Ativa "**Email/Password**" e "**Enable email enumeration protection**"
-4. Salva
+## Servicos Necessarios
 
-### 🗄️ Firestore Database
-1. Vai a: **Firestore Database**
-2. Clica em **Create Database**
-3. Escolhe: **Production mode**
-4. Região: **europe-west1** (Portugal)
-5. Cria
+Ativar no Firebase Console:
 
-### 📦 Storage
-1. Vai a: **Storage**
-2. Clica em **Get started**
-3. Region: **europe-west1**
-4. Cria
+- Authentication: Email/Password
+- Firestore Database
+- Storage
 
----
+Regiao recomendada: `europe-west1`.
 
-## 2. Criar Conta de Admin
+## Estrutura de Dados
 
-Como o frontend não tem acesso ao Firebase Admin SDK, precisas de criar a conta manualmente:
+### `employees/{email}`
 
-### Via Firebase Console (Recomendado)
-1. Vai a: **Authentication** → **Users**
-2. Clica em **Add user**
-3. Email: `tiago.bandeira@algartempo.pt`
-4. Password: `tomas7`
-5. Clica em **Create user**
+Dados do colaborador.
 
-### Depois, Criar Documento no Firestore
-1. Vai a: **Firestore Database** → **Coleção** → **+ Create collection**
-2. ID: `employees`
-3. First document ID: `tiago.bandeira@algartempo.pt`
-4. Adiciona estes campos:
-   ```
-   - email: "tiago.bandeira@algartempo.pt"
-   - nome: "Tiago Bandeira"
-   - role: "administrador"
-   - ativo: true
-   - criadoEm: (auto - timestamp atual)
-   ```
-5. Salva
+```json
+{
+  "email": "colaborador@empresa.pt",
+  "nome": "Nome Completo",
+  "role": "colaborador",
+  "ativo": true,
+  "criadoEm": "2026-05-25T00:00:00.000Z"
+}
+```
 
----
+Roles suportadas:
 
-## 3. Configurar Firestore Security Rules
+- `colaborador`
+- `gestor_conteudos`
+- `administrador`
 
-Vai a: **Firestore Database** → **Rules** e cola isto:
+### `employees/{email}/progress/data`
+
+Progresso do colaborador.
+
+```json
+{
+  "rgpd": {
+    "m1": {
+      "read": true,
+      "quizPassed": true,
+      "lastScore": 80,
+      "attempts": 1
+    }
+  }
+}
+```
+
+### `courses/{courseId}`
+
+Dados principais da formacao.
+
+```json
+{
+  "title": "Protecao de Dados e RGPD",
+  "subtitle": "Conformidade e boas praticas",
+  "duration": "2h 30min",
+  "category": "Conformidade",
+  "passingScore": 60,
+  "order": 0
+}
+```
+
+### `courses/{courseId}/modules/{moduleId}`
+
+Modulo da formacao.
+
+```json
+{
+  "title": "Introducao ao RGPD",
+  "duration": "45 min",
+  "pages": 12,
+  "order": 0,
+  "content": [],
+  "quiz": [
+    {
+      "type": "mc",
+      "question": "Pergunta?",
+      "options": ["A", "B", "C", "D"],
+      "answer": 0
+    }
+  ]
+}
+```
+
+### `modules/{courseId_moduleId}`
+
+Metadados do PDF do modulo.
+
+```json
+{
+  "pdfUrl": "https://...",
+  "updatedAt": "2026-05-25T00:00:00.000Z"
+}
+```
+
+### `whitelist/{email}`
+
+Entradas autorizadas para registo/importacao.
+
+```json
+{
+  "email": "colaborador@empresa.pt",
+  "nome": "Nome Completo",
+  "departamento": "RH",
+  "registado": false,
+  "criadoEm": "2026-05-25T00:00:00.000Z"
+}
+```
+
+## Regras Firestore Recomendadas
 
 ```firestore
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Employees collection - user data + progress
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/employees/$(userEmail())).data.role;
+    }
+
+    function isAdmin() {
+      return signedIn() && role() == 'administrador';
+    }
+
+    function isContentManager() {
+      return signedIn() && role() in ['gestor_conteudos', 'administrador'];
+    }
+
     match /employees/{email} {
-      allow read: if request.auth != null && (
-        request.auth.token.email == email ||
-        getRole(request.auth.token.email) in ['administrador']
-      );
-      allow write: if request.auth != null && getRole(request.auth.token.email) == 'administrador';
-      
+      allow read: if signedIn() && (userEmail() == email || isAdmin());
+      allow create, update, delete: if isAdmin();
+
       match /progress/{document=**} {
-        allow read, write: if request.auth != null && request.auth.token.email == email;
+        allow read, write: if signedIn() && userEmail() == email;
+        allow read: if isAdmin();
       }
     }
-    
-    // Modules collection - readable by all authenticated users
-    match /modules/{id} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && getRole(request.auth.token.email) in ['gestor_conteudos', 'administrador'];
+
+    match /courses/{courseId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
+
+      match /modules/{moduleId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isContentManager();
+      }
     }
-  }
-  
-  function getRole(email) {
-    return get(/databases/$(database)/documents/employees/$(email)).data.role;
+
+    match /modules/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
+    }
+
+    match /whitelist/{email} {
+      allow read, create, update, delete: if isAdmin();
+    }
   }
 }
 ```
 
----
+## Regras Storage Recomendadas
 
-## 4. Configurar Storage Rules
-
-Vai a: **Storage** → **Rules** e cola isto:
-
-```
+```firestore
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /pdfs/{courseId}/{moduleId}.pdf {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        getRole(request.auth.token.email) in ['gestor_conteudos', 'administrador'];
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
     }
-  }
-  
-  function getRole(email) {
-    return firestore.get(/databases/(default)/documents/employees/$(email)).data.role;
+
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
+    function role() {
+      return firestore.get(/databases/(default)/documents/employees/$(userEmail())).data.role;
+    }
+
+    function isContentManager() {
+      return signedIn() && role() in ['gestor_conteudos', 'administrador'];
+    }
+
+    match /pdfs/{courseId}/{moduleId}.pdf {
+      allow read: if signedIn();
+      allow write: if isContentManager()
+        && request.resource.size < 50 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
   }
 }
 ```
 
----
+## Criar Primeiro Administrador
 
-## 5. Adicionar Mais Colaboradores
+1. Criar utilizador em Authentication com email/password.
+2. Criar documento `employees/{email}` no Firestore:
 
-Depois de tudo configurado, para adicionar novos colaboradores:
+```json
+{
+  "email": "admin@empresa.pt",
+  "nome": "Administrador",
+  "role": "administrador",
+  "ativo": true,
+  "criadoEm": "2026-05-25T00:00:00.000Z"
+}
+```
 
-1. **Criar auth user** em Authentication → Users
-2. **Criar documento Firestore** em `employees/{email}` com:
-   - `email`: o email deles
-   - `nome`: nome completo
-   - `role`: `"colaborador"`, `"gestor_conteudos"` ou `"administrador"`
-   - `ativo`: `true` ou `false`
-   - `criadoEm`: timestamp (auto)
+## Notas de Operacao
 
----
-
-## 6. Roles e Permissões
-
-| Funcionalidade | Colaborador | Gestor Conteúdos | Administrador |
-|---|:---:|:---:|:---:|
-| Fazer login | ✅ | ✅ | ✅ |
-| Ver formações | ✅ | ✅ | ✅ |
-| Fazer quizzes | ✅ | ✅ | ✅ |
-| Ver seu progresso | ✅ | ✅ | ✅ |
-| Upload de PDFs | ❌ | ✅ | ✅ |
-| Criar/editar conteúdo | ❌ | ✅ | ✅ |
-| Gerir utilizadores | ❌ | ❌ | ✅ |
-| Ver progresso global | ❌ | ❌ | ✅ |
-
----
-
-## 🎯 Próximas Fases
-
-**Fase 2 (Auto-registo com whitelist):**
-- Importar Excel com funcionários
-- Implementar registo automático com validação de email
-- Atribuir role padrão (colaborador) automaticamente
-
-**Phase 3 (Dashboard de Admin):**
-- Gerir utilizadores (criar, editar, desativar)
-- Ver progresso global de todos os colaboradores
-- Gerar relatórios de conclusão
+- O frontend tem fallback para cursos locais se Firestore nao tiver cursos.
+- O progresso so deve ser escrito pelo proprio colaborador.
+- Gestores de conteudos podem criar/editar formacoes, modulos e PDFs.
+- Apenas administradores devem gerir utilizadores e whitelist.
