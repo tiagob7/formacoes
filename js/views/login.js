@@ -1,0 +1,129 @@
+import { icon }             from '../icons.js';
+import { loginEmployee }    from '../firebase-service.js';
+import { setState }         from '../state.js';
+import { navigate }         from '../router.js';
+
+export function renderLogin(container) {
+  container.innerHTML = `
+    <div class="login-page">
+      <div class="login-left">
+        <div class="login-brand">
+          <img src="assets/logo-white.png" alt="AlgarTempo" class="login-brand-logo" />
+          <div class="login-brand-div"></div>
+          <div>
+            <div class="login-brand-name">Formações</div>
+            <div class="login-brand-tag">Plataforma de E-Learning</div>
+          </div>
+        </div>
+
+        <div class="login-hero">
+          <div class="login-eyebrow">BEM-VINDO DE VOLTA</div>
+          <h1 class="login-title">O conhecimento que faz&nbsp;a diferença.</h1>
+          <p class="login-lead">
+            Aceda às suas formações internas, complete módulos ao seu ritmo e
+            certifique as competências essenciais para o seu percurso profissional.
+          </p>
+          <div class="login-stats">
+            <div>
+              <div class="login-stat-n">1 280</div>
+              <div class="login-stat-l">colaboradores activos</div>
+            </div>
+            <div class="login-stat-sep"></div>
+            <div>
+              <div class="login-stat-n">47</div>
+              <div class="login-stat-l">formações disponíveis</div>
+            </div>
+            <div class="login-stat-sep"></div>
+            <div>
+              <div class="login-stat-n">96%</div>
+              <div class="login-stat-l">taxa de conclusão</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-footer">
+          <img src="assets/icon.png" alt="" />
+          © 2026 ALGARTEMPO · Departamento de Recursos Humanos · v1.0
+        </div>
+      </div>
+
+      <div class="login-right">
+        <form class="login-card" id="login-form" novalidate>
+          <div class="login-card-eyebrow">ACESSO À PLATAFORMA</div>
+          <h2 class="login-card-title">Iniciar sessão</h2>
+          <p class="login-card-lead">
+            Identifique-se com o seu email corporativo e password.
+          </p>
+
+          <label class="form-label" for="login-email">Email</label>
+          <input id="login-email" type="email" class="form-input"
+            placeholder="ex.: joao@algartempo.pt" autocomplete="email" />
+
+          <label class="form-label" for="login-password">Password</label>
+          <input id="login-password" type="password" class="form-input"
+            placeholder="••••••••" autocomplete="current-password" />
+
+          <div id="login-error" class="form-error" style="display:none"></div>
+
+          <button type="submit" class="btn-primary" id="login-btn">
+            Entrar
+            <span id="login-arrow">${icon('arrowRight', 16)}</span>
+            <span id="login-spinner" class="spinner" style="display:none"></span>
+          </button>
+
+          <p class="login-hint">
+            Em caso de dificuldades de acesso, contacte o
+            <strong>Helpdesk RH (ext. 4040)</strong>.
+          </p>
+        </form>
+      </div>
+    </div>`;
+
+  const form      = document.getElementById('login-form');
+  const emailEl   = document.getElementById('login-email');
+  const passEl    = document.getElementById('login-password');
+  const errEl     = document.getElementById('login-error');
+  const btn       = document.getElementById('login-btn');
+  const spinner   = document.getElementById('login-spinner');
+  const arrow     = document.getElementById('login-arrow');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email    = emailEl.value.trim();
+    const password = passEl.value;
+
+    if (!email || !password) {
+      showError('Preencha todos os campos para continuar.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await loginEmployee(email, password);
+      setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid }, progress: result.progress });
+      navigate('/dashboard');
+    } catch (err) {
+      console.error(err);
+      const errorMsg = err.code === 'auth/invalid-credential'
+        ? 'Email ou password incorretos.'
+        : 'Erro ao aceder à plataforma. Verifique a ligação e tente novamente.';
+      showError(errorMsg);
+      setLoading(false);
+    }
+  });
+
+  function showError(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+
+  function setLoading(on) {
+    btn.disabled       = on;
+    spinner.style.display = on ? 'block' : 'none';
+    arrow.style.display   = on ? 'none'  : 'inline-block';
+  }
+
+  emailEl.addEventListener('input',    () => { errEl.style.display = 'none'; });
+  passEl.addEventListener('input',     () => { errEl.style.display = 'none'; });
+  emailEl.focus();
+}
