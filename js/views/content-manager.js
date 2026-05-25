@@ -48,8 +48,8 @@ function renderCourseList(root) {
   root.innerHTML = `
     <div class="admin-toolbar">
       <h2 style="margin:0;font-size:18px">Formações</h2>
-      <button class="btn-primary" id="btn-new-course" style="margin-left:auto">
-        ${icon('plus',14)} Nova formação
+      <button class="btn-sm primary" id="btn-new-course">
+        ${icon('plus',12)} Nova formação
       </button>
     </div>
     <div class="courses-manager-grid" id="cm-courses-grid"></div>`;

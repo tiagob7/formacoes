@@ -17,7 +17,10 @@
       "Skill(impeccable:impeccable)",
       "Skill(impeccable:impeccable:*)",
       "Bash(node .claude/skills/impeccable/scripts/load-context.mjs)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Bash(curl -s http://localhost:8081)",
+      "Bash(grep -E \"\\\\.\\(js|html\\)$\")"
     ]
   }
 }
