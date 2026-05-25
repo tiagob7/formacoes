@@ -168,6 +168,12 @@ function openUserModal(emp, all) {
         <input id="u-email" class="form-input" type="email" value="${emp?.id || ''}"
                placeholder="email@empresa.pt" ${isEdit ? 'disabled style="opacity:.6"' : ''} />
 
+        ${!isEdit ? `
+        <label class="form-label" style="margin-top:1rem">Password</label>
+        <input id="u-password" class="form-input" type="password"
+               placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+        ` : ''}
+
         <label class="form-label" style="margin-top:1rem">Role</label>
         <select id="u-role" class="form-input">
           ${Object.entries(ROLES).map(([v,l]) =>
@@ -193,14 +199,21 @@ function openUserModal(emp, all) {
     </div>`);
 
   document.getElementById('modal-save').addEventListener('click', async () => {
-    const nome  = document.getElementById('u-nome').value.trim();
-    const email = (document.getElementById('u-email').value || emp?.id || '').trim().toLowerCase();
-    const role  = document.getElementById('u-role').value;
-    const ativo = isEdit ? document.getElementById('u-ativo').value === 'true' : true;
-    const errEl = document.getElementById('u-error');
+    const nome     = document.getElementById('u-nome').value.trim();
+    const email    = (document.getElementById('u-email').value || emp?.id || '').trim().toLowerCase();
+    const password = !isEdit ? document.getElementById('u-password').value : null;
+    const role     = document.getElementById('u-role').value;
+    const ativo    = isEdit ? document.getElementById('u-ativo').value === 'true' : true;
+    const errEl    = document.getElementById('u-error');
 
     if (!nome || !email) {
       errEl.textContent = 'Preencha nome e email.'; errEl.style.display = 'block'; return;
+    }
+    if (!isEdit && !password) {
+      errEl.textContent = 'Defina uma password.'; errEl.style.display = 'block'; return;
+    }
+    if (!isEdit && password.length < 6) {
+      errEl.textContent = 'A password deve ter pelo menos 6 caracteres.'; errEl.style.display = 'block'; return;
     }
     if (!isEdit && all.find(e => e.id === email)) {
       errEl.textContent = 'Este email já existe.'; errEl.style.display = 'block'; return;
@@ -212,7 +225,7 @@ function openUserModal(emp, all) {
       if (isEdit) {
         await updateEmployee(email, { nome, role, ativo });
       } else {
-        await createEmployee(email, nome, role);
+        await createEmployee(email, password, nome, role);
       }
       showToast(`Utilizador ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();

@@ -1,5 +1,6 @@
-import { initializeApp }                                        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut }          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { initializeApp, getApps }                               from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut,
+         createUserWithEmailAndPassword }                        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, query, collection, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 import { firebaseConfig } from './firebase-config.js';
@@ -192,10 +193,23 @@ export async function getEmployees() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function createEmployee(email, nome, role = 'colaborador') {
+export async function createEmployee(email, password, nome, role = 'colaborador') {
   init();
-  const empRef = doc(_db, 'employees', email.trim().toLowerCase());
-  await setDoc(empRef, { email: email.trim().toLowerCase(), nome, role, ativo: true, criadoEm: new Date().toISOString() });
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Usar segunda instância para não fazer logout do admin atual
+  const secondaryApp  = initializeApp(firebaseConfig, 'secondary-' + Date.now());
+  const secondaryAuth = getAuth(secondaryApp);
+  try {
+    await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, password);
+    await signOut(secondaryAuth);
+  } finally {
+    await secondaryApp.delete?.();
+  }
+
+  await setDoc(doc(_db, 'employees', normalizedEmail), {
+    email: normalizedEmail, nome, role, ativo: true, criadoEm: new Date().toISOString(),
+  });
 }
 
 export async function updateEmployee(email, data) {
