@@ -381,7 +381,7 @@ function openUploadModal(courseId, moduleId, onSuccess) {
 
     try {
       await uploadModulePDF(courseId, moduleId, selectedFile, (pct) => {
-        overlay.querySelector('#upload-progress-fill').style.width = `${pct}%`;
+        overlay.querySelector('#upload-progress-fill').style.transform = `scaleX(${pct / 100})`;
         overlay.querySelector('#upload-progress-label').textContent = `A carregar... ${pct}%`;
       });
       overlay.remove();

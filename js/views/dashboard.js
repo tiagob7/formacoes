@@ -88,7 +88,7 @@ export async function renderDashboard(container) {
           </div>
           <div class="course-filter-stack">
             <div class="course-filter-group" id="category-filters" aria-label="Filtrar por categoria"></div>
-            <div class="course-filter-group" id="assignment-filters" aria-label="Filtrar por tipo de atribuiÃ§Ã£o"></div>
+            <div class="course-filter-group" id="assignment-filters" aria-label="Filtrar por tipo de atribuição"></div>
             <div class="course-filter-group" id="status-filters" aria-label="Filtrar por estado"></div>
           </div>
         </div>
@@ -211,8 +211,8 @@ export async function renderDashboard(container) {
     const catalog = list.filter(course => !course.isRequired);
 
     grid.innerHTML = [
-      renderCourseSection('Atribuidas a mim', 'Formacoes obrigatorias para concluir.', assigned),
-      renderCourseSection('Catalogo disponivel', 'Formacoes opcionais que pode iniciar quando fizer sentido.', catalog),
+      renderCourseSection('Atribuídas a mim', 'Formações obrigatórias para concluir.', assigned),
+      renderCourseSection('Catálogo disponível', 'Formações opcionais que pode iniciar quando fizer sentido.', catalog),
     ].filter(Boolean).join('');
 
     grid.querySelectorAll('.course-card').forEach(el => {
@@ -306,7 +306,7 @@ function courseCard(course, p) {
 
 function deadlineBadge(deadline) {
   const label = deadline.completed
-    ? `Concluida dentro do prazo: ${deadline.label}`
+    ? `Concluída dentro do prazo: ${deadline.label}`
     : deadline.isOverdue
       ? `Atrasada desde ${deadline.label}`
       : deadline.isDueSoon

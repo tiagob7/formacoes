@@ -16,7 +16,8 @@
       "Bash(git config *)",
       "Skill(impeccable:impeccable)",
       "Skill(impeccable:impeccable:*)",
-      "Bash(node .claude/skills/impeccable/scripts/load-context.mjs)"
+      "Bash(node .claude/skills/impeccable/scripts/load-context.mjs)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

@@ -718,7 +718,7 @@ function openPdfUpload(courseId, moduleId) {
         <input type="file" id="pdf-file" class="form-input" accept=".pdf" />
         <div id="pdf-progress" style="display:none;margin-top:1rem">
           <div style="height:6px;background:var(--ink-6);border-radius:3px;overflow:hidden">
-            <div id="pdf-bar" style="height:100%;width:0%;background:var(--cyan-2);border-radius:3px;transition:width .2s"></div>
+            <div id="pdf-bar" style="height:100%;background:var(--cyan-2);border-radius:3px;transition:transform .2s;transform-origin:left;transform:scaleX(0)"></div>
           </div>
           <div id="pdf-pct" style="text-align:center;font-size:13px;margin-top:.5rem;color:var(--ink-3)">0%</div>
         </div>
@@ -741,7 +741,7 @@ function openPdfUpload(courseId, moduleId) {
 
     try {
       await uploadModulePDF(courseId, moduleId, file, pct => {
-        document.getElementById('pdf-bar').style.width = pct + '%';
+        document.getElementById('pdf-bar').style.transform = `scaleX(${pct / 100})`;
         document.getElementById('pdf-pct').textContent = pct + '%';
       });
       showToast('PDF carregado com sucesso!', 'success');
