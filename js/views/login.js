@@ -23,22 +23,6 @@ export function renderLogin(container) {
             Aceda às suas formações internas, complete módulos ao seu ritmo e
             certifique as competências essenciais para o seu percurso profissional.
           </p>
-          <div class="login-stats">
-            <div>
-              <div class="login-stat-n">1 280</div>
-              <div class="login-stat-l">colaboradores ativos</div>
-            </div>
-            <div class="login-stat-sep"></div>
-            <div>
-              <div class="login-stat-n">47</div>
-              <div class="login-stat-l">formações disponíveis</div>
-            </div>
-            <div class="login-stat-sep"></div>
-            <div>
-              <div class="login-stat-n">96%</div>
-              <div class="login-stat-l">taxa de conclusão</div>
-            </div>
-          </div>
         </div>
 
         <div class="login-footer">

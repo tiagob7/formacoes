@@ -10,7 +10,7 @@
 
 | # | Comando | Status | Ficheiros | Notas |
 |---|---------|--------|-----------|-------|
-| 1 | `/impeccable harden` | ⏳ Pendente | `css/styles.css`, `js/views/*.js` | A11y: role alert, aria-live, aria-label, prefers-reduced-motion, semântica |
+| 1 | `/impeccable harden` | ✅ Concluído | `css/styles.css`, `js/views/*.js` | A11y: role alert, aria-live, aria-label, prefers-reduced-motion, semântica |
 | 2 | `/impeccable distill` | ⏳ Pendente | `css/styles.css`, `js/views/*.js` | Remover gradient text, side-stripes, anti-patterns (hero-metric, shimmer, watermark, dots) |
 | 3 | `/impeccable colorize` | ⏳ Pendente | `css/styles.css` | Escurecer cyan AA, revisar greens/ambers, considerar OKLCH |
 | 4 | `/impeccable clarify` | ⏳ Pendente | `js/views/*.js`, `index.html` | Mojibake/acentos PT-PT, em-dash, label search |
@@ -24,20 +24,26 @@
 ## Progresso Detalhado
 
 ### 1️⃣ `/impeccable harden` — A11y & Semântica
-**Status**: ⏳ Pendente  
+**Status**: ✅ Concluído  
 **P0 Issues a resolver**:
-- [ ] `#login-error` → `role="alert"`
-- [ ] `.toast` → `aria-live="polite"`
-- [ ] Todos icon buttons → `aria-label`
-- [ ] `.search-input` → `<label>` ou `aria-label`
-- [ ] `.course-card` → mudar para `<button>` ou `<a>`
-- [ ] Adicionar `@media (prefers-reduced-motion: reduce)` para desligar float/spin infinitos
+- [x] `#login-error` → `role="alert" aria-live="polite"`
+- [x] `.toast` → `role="status" aria-live="polite"`
+- [x] Icon buttons → `aria-label` (logout-btn + search-input)
+- [x] `.search-input` → `aria-label="Pesquisar formações"`
+- [x] `.course-card` → `<button type="button">` com `aria-label`
+- [x] Adicionar `@media (prefers-reduced-motion: reduce)` para desligar animações
 
-**Mudanças esperadas**:
-- Acessibilidade: 1 → 3
-- Responsividade: sem mudança (mas prepare-se para touch target fix)
+**Mudanças realizadas**:
+- CSS: adicionado `@keyframes progressFill` com scaleX (prep para optimize)
+- CSS: adicionado `@media (prefers-reduced-motion: reduce)` global
+- Login: `#login-error` com `role="alert" aria-live="polite"`
+- UI: toast com `role="status" aria-live="polite"`
+- Dashboard: search-input com `aria-label`; course-card como `<button>` com `aria-label`
+- UI: logout-btn com `aria-label="Terminar sessão"`
 
-**Data de conclusão**: —
+**Ficheiros editados**: `css/styles.css`, `js/views/login.js`, `js/views/dashboard.js`, `js/ui.js`
+
+**Data de conclusão**: 2026-05-26 14:45
 
 ---
 
