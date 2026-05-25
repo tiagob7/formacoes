@@ -75,8 +75,8 @@ Objetivo: transformar a plataforma num sistema completo de aprendizagem e certif
 
 | Estado | Prioridade | Melhoria | Criterio de conclusao |
 |---|---:|---|---|
-| [ ] | P1 | Certificados PDF | Formacao concluida gera certificado descarregavel |
-| [ ] | P1 | Pagina "Certificados" | Colaborador ve certificados ganhos e pendentes |
+| [x] | P1 | Certificados PDF | Formacao concluida gera certificado descarregavel |
+| [x] | P1 | Pagina "Certificados" | Colaborador ve certificados ganhos e pendentes |
 | [~] | P1 | Historico de tentativas | Contador de tentativas e melhor nota guardados; historico completo por data e tentativa pendente |
 | [x] | P1 | Melhor nota por modulo | bestScore calculado e apresentado na pagina de resultados |
 | [ ] | P1 | Prazos de formacoes obrigatorias | Formacoes podem ter data limite |
@@ -105,7 +105,7 @@ Objetivo: dar autonomia real a RH/gestores sem exigir edicao tecnica.
 | [x] | P1 | Estados de publicacao | Rascunho, publicado, arquivado — dashboard filtra apenas publicados |
 | [ ] | P1 | Importacao de colaboradores com validacao | Excel/CSV mostra erros antes de importar |
 | [x] | P1 | Exportar relatorios CSV/Excel | Admin exporta progresso por colaborador e por formacao |
-| [ ] | P1 | Dashboard admin com KPIs | Taxa de conclusao, pendentes, atrasados e medias |
+| [~] | P1 | Dashboard admin com KPIs | Taxa de conclusao, pendentes, atrasados e medias (row de KPIs basico adicionado; falta detalhe por formacao e por colaborador) |
 | [ ] | P2 | Auditoria de alteracoes | Registar quem criou/editou cursos, modulos e utilizadores |
 | [ ] | P2 | Reordenar cursos e modulos | Drag/drop ou controlos de ordem |
 | [ ] | P2 | Gestao de departamentos | Criar departamentos e associar colaboradores |

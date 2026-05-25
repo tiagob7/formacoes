@@ -1206,6 +1206,13 @@ select:focus-visible,
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 1rem;
 }
+.admin-count-badge {
+  display: inline-flex; align-items: center;
+  white-space: nowrap;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+  background: var(--line); color: var(--ink-3);
+}
 
 /* Table */
 .admin-table-wrap {

@@ -65,8 +65,8 @@ async function renderUsers(container) {
     <div class="admin-toolbar">
       <input id="search-users" class="form-input" style="max-width:260px"
              placeholder="Pesquisar por nome ou email…" />
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <span style="font-size:13px;color:var(--ink-3);align-self:center">${employees.length} utilizadores</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <span class="admin-count-badge">${employees.length} utilizadores</span>
         <button class="btn-primary" id="btn-new-user">${icon('plus',14)} Novo utilizador</button>
       </div>
     </div>
