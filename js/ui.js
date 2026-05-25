@@ -10,6 +10,21 @@ export function renderShell(activeView) {
   const { user } = getState();
   const initial  = user?.name?.charAt(0)?.toUpperCase() || '?';
 
+  const role = user?.role || 'colaborador';
+
+  const adminNav = role === 'administrador' ? `
+    <div class="nav-spacer"></div>
+    <div class="nav-label">ADMINISTRAÇÃO</div>
+    ${navItem('settings', 'Admin', activeView === 'admin', '/admin')}
+    ${navItem('edit', 'Conteúdos', activeView === 'conteudos', '/conteudos')}` : '';
+
+  const gestorNav = role === 'gestor_conteudos' ? `
+    <div class="nav-spacer"></div>
+    <div class="nav-label">GESTÃO</div>
+    ${navItem('edit', 'Conteúdos', activeView === 'conteudos', '/conteudos')}` : '';
+
+  const roleLabel = { administrador: 'Administrador', gestor_conteudos: 'Gestor Conteúdos', colaborador: 'Colaborador' }[role] || role;
+
   return `
     <aside class="sidebar">
       <div class="sidebar-brand">
@@ -19,19 +34,15 @@ export function renderShell(activeView) {
       <nav class="sidebar-nav">
         <div class="nav-label">PRINCIPAL</div>
         ${navItem('home',  'Dashboard', activeView === 'dashboard', '/dashboard')}
-        ${navItem('grid',  'Catálogo',  activeView === 'catalog',   '/dashboard')}
-        ${navItem('chart', 'Progresso', activeView === 'progress',  '/dashboard')}
         ${navItem('award', 'Certificados', false, null, '2')}
-        <div class="nav-spacer"></div>
-        <div class="nav-label">CONTA</div>
-        ${navItem('user',     'Perfil',     false)}
-        ${navItem('settings', 'Definições', false)}
+        ${adminNav}
+        ${gestorNav}
       </nav>
       <div class="sidebar-user">
         <div class="avatar">${initial}</div>
         <div style="flex:1;min-width:0">
           <div class="user-name">${user?.name || ''}</div>
-          <div class="user-meta">Nº ${user?.number || ''}</div>
+          <div class="user-meta">${roleLabel}</div>
         </div>
         <button class="logout-btn" id="logout-btn" title="Terminar sessão">
           ${icon('logout', 16)}

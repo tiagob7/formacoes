@@ -5,13 +5,15 @@
  */
 import { route, initRouter, navigate } from './router.js';
 import { getState, setState }           from './state.js';
-import { getSessionUser, loadProgress } from './firebase-service.js';
+import { getSessionUser, loadProgress, hasRole } from './firebase-service.js';
 import { renderShell, wireShell }       from './ui.js';
 import { renderLogin }                  from './views/login.js';
 import { renderDashboard }              from './views/dashboard.js';
 import { renderModule }                 from './views/module.js';
 import { renderQuiz }                   from './views/quiz.js';
 import { renderResults }                from './views/results.js';
+import { renderAdmin }                  from './views/admin.js';
+import { renderContentManager }         from './views/content-manager.js';
 
 const app = document.getElementById('app');
 
@@ -19,9 +21,10 @@ const app = document.getElementById('app');
 /* Route helpers                                                        */
 /* ------------------------------------------------------------------ */
 
-function requireAuth() {
+function requireAuth(requiredRole = null) {
   const { user } = getState();
   if (!user) { navigate('/login'); return false; }
+  if (requiredRole && !hasRole(user.role, requiredRole)) { navigate('/dashboard'); return false; }
   return true;
 }
 
@@ -70,6 +73,18 @@ route('results/:courseId/:moduleId', async (params) => {
   if (!requireAuth()) return;
   const main = mountShell('results');
   await renderResults(main, params);
+});
+
+route('admin', async () => {
+  if (!requireAuth('administrador')) return;
+  const main = mountShell('admin');
+  await renderAdmin(main);
+});
+
+route('conteudos', async () => {
+  if (!requireAuth('gestor_conteudos')) return;
+  const main = mountShell('conteudos');
+  await renderContentManager(main);
 });
 
 /* ------------------------------------------------------------------ */

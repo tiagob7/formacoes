@@ -180,42 +180,100 @@ export async function getModulePdfUrl(courseId, moduleId) {
 /* Admin functions (user management)                                   */
 /* ------------------------------------------------------------------ */
 
-/**
- * Create a new employee account (admin only).
- * Must be called by authenticated admin user.
- */
-export async function createEmployeeAccount(email, password, nome, role = 'colaborador') {
+/* ------------------------------------------------------------------ */
+/* Admin — employee management                                         */
+/* ------------------------------------------------------------------ */
+
+export async function getEmployees() {
   init();
-  if (!isConfigured()) {
-    throw new Error('Firebase não configurado.');
-  }
-
-  try {
-    // Create auth user
-    const userCred = await signInWithEmailAndPassword(_auth, _auth.currentUser.email, _auth.currentUser.password);
-    // Note: We can't actually get the password here, so this is a placeholder.
-    // In practice, this should be done via Firebase Admin SDK on the backend.
-
-    // For now, just create the Firestore document
-    const empRef = doc(_db, 'employees', email);
-    await setDoc(empRef, {
-      email,
-      nome,
-      role,
-      ativo: true,
-      criadoEm: new Date().toISOString()
-    });
-
-    return { email, nome, role };
-  } catch (err) {
-    throw err;
-  }
+  if (!isConfigured()) return [];
+  const { getDocs: _getDocs, collection: _col } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const snap = await _getDocs(_col(_db, 'employees'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-/**
- * Check if current user has required role.
- */
+export async function createEmployee(email, nome, role = 'colaborador') {
+  init();
+  const empRef = doc(_db, 'employees', email.trim().toLowerCase());
+  await setDoc(empRef, { email: email.trim().toLowerCase(), nome, role, ativo: true, criadoEm: new Date().toISOString() });
+}
+
+export async function updateEmployee(email, data) {
+  init();
+  await setDoc(doc(_db, 'employees', email), data, { merge: true });
+}
+
+export async function importEmployees(list) {
+  init();
+  const results = { created: 0, skipped: 0 };
+  for (const emp of list) {
+    const email = emp.email?.trim().toLowerCase();
+    if (!email) { results.skipped++; continue; }
+    const empRef = doc(_db, 'employees', email);
+    const snap   = await getDoc(empRef);
+    if (snap.exists()) { results.skipped++; continue; }
+    await setDoc(empRef, { email, nome: emp.nome || emp.name || '', role: emp.role || 'colaborador', ativo: true, criadoEm: new Date().toISOString() });
+    results.created++;
+  }
+  return results;
+}
+
+export async function getAllProgress(employees) {
+  init();
+  const results = [];
+  for (const emp of employees) {
+    const snap = await getDoc(doc(_db, 'employees', emp.id, 'progress', 'data'));
+    results.push({ email: emp.id, nome: emp.nome, progress: snap.exists() ? snap.data() : {} });
+  }
+  return results;
+}
+
+/* ------------------------------------------------------------------ */
+/* Content manager — courses / modules                                 */
+/* ------------------------------------------------------------------ */
+
+export async function getCoursesFromDB() {
+  init();
+  if (!isConfigured()) return null;
+  const { getDocs: _getDocs, collection: _col } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const snap = await _getDocs(_col(_db, 'courses'));
+  if (snap.empty) return null;
+  const courses = [];
+  for (const d of snap.docs) {
+    const modSnap = await _getDocs(_col(_db, 'courses', d.id, 'modules'));
+    const modules = modSnap.docs.map(m => ({ id: m.id, ...m.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    courses.push({ id: d.id, ...d.data(), modules });
+  }
+  return courses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+export async function saveCourse(courseId, data) {
+  init();
+  await setDoc(doc(_db, 'courses', courseId), data, { merge: true });
+}
+
+export async function deleteCourseFromDB(courseId) {
+  init();
+  const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  await deleteDoc(doc(_db, 'courses', courseId));
+}
+
+export async function saveModule(courseId, moduleId, data) {
+  init();
+  await setDoc(doc(_db, 'courses', courseId, 'modules', moduleId), data, { merge: true });
+}
+
+export async function deleteModuleFromDB(courseId, moduleId) {
+  init();
+  const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  await deleteDoc(doc(_db, 'courses', courseId, 'modules', moduleId));
+}
+
+/* ------------------------------------------------------------------ */
+/* Role helper                                                          */
+/* ------------------------------------------------------------------ */
+
 export function hasRole(currentRole, requiredRole) {
-  const roleHierarchy = { 'colaborador': 0, 'gestor_conteudos': 1, 'administrador': 2 };
-  return (roleHierarchy[currentRole] || -1) >= (roleHierarchy[requiredRole] || -1);
+  const hierarchy = { colaborador: 0, gestor_conteudos: 1, administrador: 2 };
+  return (hierarchy[currentRole] ?? -1) >= (hierarchy[requiredRole] ?? -1);
 }
