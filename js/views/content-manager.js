@@ -17,7 +17,7 @@ export async function renderContentManager(container) {
     <div class="topbar">
       <div>
         <h1 class="topbar-title">Gestão de Conteúdos</h1>
-        <div class="topbar-sub">Criar e editar formações, módulos e quizzes</div>
+        <div class="topbar-sub">Criar e editar formações, módulos e avaliações</div>
       </div>
     </div>
     <div style="padding:0 2rem 2rem" id="cm-root"></div>`;
@@ -66,8 +66,8 @@ function renderCourseList(root) {
             <div class="cm-course-sub">${course.subtitle || ''}</div>
           </div>
           <div class="cm-course-actions">
-            <button class="btn-icon" data-action="edit-course" title="Editar formação">${icon('edit',14)}</button>
-            <button class="btn-icon warn" data-action="delete-course" title="Eliminar">${icon('trash',14)}</button>
+            <button class="btn-icon" data-action="edit-course" title="Editar formação" aria-label="Editar formação">${icon('edit',14)}</button>
+            <button class="btn-icon warn" data-action="delete-course" title="Eliminar" aria-label="Eliminar formação">${icon('trash',14)}</button>
           </div>
         </div>
         <div class="cm-modules-list" id="modules-${course.id}">
@@ -110,9 +110,9 @@ function moduleRow(courseId, mod, idx, total) {
       <span class="cm-module-num">${idx + 1}</span>
       <span class="cm-module-name">${mod.title}</span>
       <div class="cm-module-actions">
-        <button class="btn-icon" data-action="upload-pdf" data-mid="${mod.id}" title="PDF">${icon('pdf',13,'var(--red)')}</button>
-        <button class="btn-icon" data-action="edit-module" data-mid="${mod.id}" title="Editar">${icon('edit',13)}</button>
-        <button class="btn-icon warn" data-action="delete-module" data-mid="${mod.id}" title="Eliminar">${icon('trash',13)}</button>
+        <button class="btn-icon" data-action="upload-pdf" data-mid="${mod.id}" title="PDF" aria-label="Carregar PDF do módulo">${icon('pdf',13,'var(--red)')}</button>
+        <button class="btn-icon" data-action="edit-module" data-mid="${mod.id}" title="Editar" aria-label="Editar módulo">${icon('edit',13)}</button>
+        <button class="btn-icon warn" data-action="delete-module" data-mid="${mod.id}" title="Eliminar" aria-label="Eliminar módulo">${icon('trash',13)}</button>
       </div>
     </div>`;
 }
@@ -127,7 +127,7 @@ function openCourseModal(course) {
     <div class="modal modal-wide">
       <div class="modal-header">
         <h3>${isEdit ? 'Editar formação' : 'Nova formação'}</h3>
-        <button class="btn-icon" id="modal-close">${icon('x',16)}</button>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar janela">${icon('x',16)}</button>
       </div>
       <div class="modal-body">
         <label class="form-label">Título</label>
@@ -209,7 +209,7 @@ function openModuleModal(course, mod) {
     <div class="modal modal-wide">
       <div class="modal-header">
         <h3>${isEdit ? 'Editar módulo' : 'Novo módulo'} — ${course.title}</h3>
-        <button class="btn-icon" id="modal-close">${icon('x',16)}</button>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar janela">${icon('x',16)}</button>
       </div>
       <div class="modal-body">
         <label class="form-label">Título do módulo</label>
@@ -228,7 +228,7 @@ function openModuleModal(course, mod) {
 
         <div style="margin-top:1.5rem">
           <label class="form-label">
-            Quiz (formato JSON)
+            Avaliação (formato JSON)
             <span style="font-weight:400;color:var(--ink-3);font-size:12px;margin-left:.5rem">
               type: "mc" (múltipla escolha) ou "tf" (verdadeiro/falso)
             </span>
@@ -255,7 +255,7 @@ function openModuleModal(course, mod) {
 
     let quiz = [];
     try { quiz = JSON.parse(quizRaw); }
-    catch { errEl.textContent = 'JSON do quiz inválido. Verifique a sintaxe.'; errEl.style.display = 'block'; return; }
+    catch { errEl.textContent = 'JSON da avaliação inválido. Verifique a sintaxe.'; errEl.style.display = 'block'; return; }
 
     const moduleId = isEdit ? mod.id : 'm' + Date.now();
     const order    = isEdit ? (mod.order ?? 0) : (course.modules?.length ?? 0);
@@ -294,7 +294,7 @@ function openPdfUpload(courseId, moduleId) {
     <div class="modal">
       <div class="modal-header">
         <h3>Carregar PDF</h3>
-        <button class="btn-icon" id="modal-close">${icon('x',16)}</button>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar janela">${icon('x',16)}</button>
       </div>
       <div class="modal-body">
         <label class="form-label">Ficheiro PDF</label>

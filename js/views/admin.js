@@ -8,7 +8,7 @@ import {
   getAllProgress,
 } from '../firebase-service.js';
 
-const ROLES = { administrador: 'Administrador', gestor_conteudos: 'Gestor Conteúdos', colaborador: 'Colaborador' };
+const ROLES = { administrador: 'Administrador', gestor_conteudos: 'Gestor de conteúdos', colaborador: 'Colaborador' };
 const ROLE_COLOR = { administrador: 'var(--red)', gestor_conteudos: 'var(--amber)', colaborador: 'var(--cyan-2)' };
 
 export async function renderAdmin(container) {
@@ -115,12 +115,12 @@ function renderUsersRows(list, all) {
         ${emp.ativo ? 'Ativo' : 'Inativo'}
       </td>
       <td class="table-actions">
-        <button class="btn-icon" data-act="edit"   data-id="${emp.id}" title="Editar">${icon('edit',14)}</button>
+        <button class="btn-icon" data-act="edit" data-id="${emp.id}" title="Editar" aria-label="Editar utilizador">${icon('edit',14)}</button>
         <button class="btn-icon ${emp.ativo ? 'warn' : 'ok'}" data-act="toggle" data-id="${emp.id}" data-ativo="${emp.ativo}"
-                title="${emp.ativo ? 'Desativar' : 'Ativar'}">
+                title="${emp.ativo ? 'Desativar' : 'Ativar'}" aria-label="${emp.ativo ? 'Desativar utilizador' : 'Ativar utilizador'}">
           ${emp.ativo ? icon('x',14) : icon('check',14)}
         </button>
-        <button class="btn-icon danger" data-act="delete" data-id="${emp.id}" title="Eliminar">${icon('trash',14)}</button>
+        <button class="btn-icon danger" data-act="delete" data-id="${emp.id}" title="Eliminar" aria-label="Eliminar utilizador">${icon('trash',14)}</button>
       </td>
     </tr>`).join('');
 
@@ -158,7 +158,7 @@ function openUserModal(emp, all) {
     <div class="modal">
       <div class="modal-header">
         <h3>${isEdit ? 'Editar utilizador' : 'Novo utilizador'}</h3>
-        <button class="btn-icon" id="modal-close">${icon('x',16)}</button>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar janela">${icon('x',16)}</button>
       </div>
       <div class="modal-body">
         <label class="form-label">Nome completo</label>
@@ -169,7 +169,7 @@ function openUserModal(emp, all) {
                placeholder="email@empresa.pt" ${isEdit ? 'disabled style="opacity:.6"' : ''} />
 
         ${!isEdit ? `
-        <label class="form-label" style="margin-top:1rem">Password</label>
+        <label class="form-label" style="margin-top:1rem">Palavra-passe</label>
         <input id="u-password" class="form-input" type="password"
                placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
         ` : ''}
@@ -210,10 +210,10 @@ function openUserModal(emp, all) {
       errEl.textContent = 'Preencha nome e email.'; errEl.style.display = 'block'; return;
     }
     if (!isEdit && !password) {
-      errEl.textContent = 'Defina uma password.'; errEl.style.display = 'block'; return;
+      errEl.textContent = 'Defina uma palavra-passe.'; errEl.style.display = 'block'; return;
     }
     if (!isEdit && password.length < 6) {
-      errEl.textContent = 'A password deve ter pelo menos 6 caracteres.'; errEl.style.display = 'block'; return;
+      errEl.textContent = 'A palavra-passe deve ter pelo menos 6 caracteres.'; errEl.style.display = 'block'; return;
     }
     if (!isEdit && all.find(e => e.id === email)) {
       errEl.textContent = 'Este email já existe.'; errEl.style.display = 'block'; return;
@@ -325,7 +325,7 @@ function renderWhitelistRows(filtered, all) {
           : `<span style="color:var(--ink-3);font-size:13px">Pendente</span>`}
       </td>
       <td class="table-actions">
-        <button class="btn-icon danger" data-act="del-wl" data-id="${entry.id}" title="Remover">${icon('trash',14)}</button>
+        <button class="btn-icon danger" data-act="del-wl" data-id="${entry.id}" title="Remover" aria-label="Remover entrada da whitelist">${icon('trash',14)}</button>
       </td>
     </tr>`).join('');
 

@@ -1,5 +1,5 @@
 import { icon } from '../icons.js';
-import { loadCourses, courseProgress, getResumeCourse, globalProgress, getCoursesStatus } from '../course-service.js';
+import { loadCourses, courseProgress, getResumeTarget, globalProgress, getCoursesStatus } from '../course-service.js';
 import { navigate } from '../router.js';
 import { getState } from '../state.js';
 import { renderLoadingState, renderInlineNotice, renderEmptyState } from '../ui.js';
@@ -24,7 +24,9 @@ export async function renderDashboard(container) {
 
   const coursesStatus      = getCoursesStatus();
   const overall            = globalProgress(courses, progress);
-  const resumeCourse       = getResumeCourse(courses, progress);
+  const resumeTarget       = getResumeTarget(courses, progress);
+  const resumeCourse       = resumeTarget?.course || null;
+  const resumeModule       = resumeTarget?.module || null;
   const firstName          = (user.name || 'Colaborador').split(' ')[0];
 
   container.innerHTML = `
@@ -47,7 +49,7 @@ export async function renderDashboard(container) {
             <h2 class="banner-title">${resumeCourse ? resumeCourse.title : 'Comece a sua primeira formação'}</h2>
             <p class="banner-lead">
               ${resumeCourse
-                ? 'Está mais perto de completar esta formação. Retome o módulo onde parou.'
+                ? `Retome em "${resumeModule?.title || 'módulo seguinte'}" e continue o percurso a partir do ponto certo.`
                 : 'Existem ' + courses.length + ' formações à sua espera. Comece pela mais relevante para o seu departamento.'}
             </p>
             <button class="banner-btn" id="banner-cta">
@@ -83,7 +85,10 @@ export async function renderDashboard(container) {
             <h2 class="section-title">Formações disponíveis</h2>
             <div class="section-sub" id="courses-count">${courses.length} formações atribuídas ao seu perfil</div>
           </div>
-          <div class="course-filters" id="course-filters"></div>
+          <div class="course-filter-stack">
+            <div class="course-filter-group" id="category-filters" aria-label="Filtrar por categoria"></div>
+            <div class="course-filter-group" id="status-filters" aria-label="Filtrar por estado"></div>
+          </div>
         </div>
         <div class="courses-grid" id="courses-grid"></div>
         <div class="empty-state small" id="courses-empty" style="display:none">
@@ -99,26 +104,45 @@ export async function renderDashboard(container) {
   // Banner CTA
   document.getElementById('banner-cta').addEventListener('click', () => {
     const target = resumeCourse || courses[0];
-    if (target?.modules?.[0]) navigate(`/module/${target.id}/${target.modules[0].id}`);
+    const targetModule = resumeModule || target?.modules?.[0];
+    if (target && targetModule) navigate(`/module/${target.id}/${targetModule.id}`);
   });
 
   const searchInput = document.querySelector('.search-input');
-  const filters = document.getElementById('course-filters');
+  const categoryFilters = document.getElementById('category-filters');
+  const statusFilters = document.getElementById('status-filters');
   const grid = document.getElementById('courses-grid');
   const categories = ['Todas', ...new Set(courses.map(course => course.category).filter(Boolean))];
+  const statuses = ['Todos', 'Não iniciada', 'Em curso', 'Concluída'];
   let activeCategory = 'Todas';
+  let activeStatus = 'Todos';
   let query = '';
 
-  filters.innerHTML = categories.map((category, index) => `
+  categoryFilters.innerHTML = categories.map((category, index) => `
     <button class="filter-chip ${index === 0 ? 'active' : ''}" data-category="${category}">
       ${category}
     </button>
   `).join('');
 
-  filters.querySelectorAll('.filter-chip').forEach(btn => {
+  statusFilters.innerHTML = statuses.map((status, index) => `
+    <button class="filter-chip ${index === 0 ? 'active' : ''}" data-status="${status}">
+      ${status}
+    </button>
+  `).join('');
+
+  categoryFilters.querySelectorAll('.filter-chip').forEach(btn => {
     btn.addEventListener('click', () => {
       activeCategory = btn.dataset.category;
-      filters.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+      categoryFilters.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      renderCourseGrid();
+    });
+  });
+
+  statusFilters.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeStatus = btn.dataset.status;
+      statusFilters.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
       btn.classList.add('active');
       renderCourseGrid();
     });
@@ -133,9 +157,11 @@ export async function renderDashboard(container) {
 
   function renderCourseGrid() {
     const filteredCourses = courses.filter(course => {
+      const p = courseProgress(course, progress);
       const matchesCategory = activeCategory === 'Todas' || course.category === activeCategory;
+      const matchesStatus = activeStatus === 'Todos' || p.status === activeStatus;
       const haystack = `${course.title} ${course.subtitle} ${course.category}`.toLowerCase();
-      return matchesCategory && (!query || haystack.includes(query));
+      return matchesCategory && matchesStatus && (!query || haystack.includes(query));
     });
 
     document.getElementById('courses-count').textContent =

@@ -26,7 +26,7 @@ export function renderLogin(container) {
           <div class="login-stats">
             <div>
               <div class="login-stat-n">1 280</div>
-              <div class="login-stat-l">colaboradores activos</div>
+              <div class="login-stat-l">colaboradores ativos</div>
             </div>
             <div class="login-stat-sep"></div>
             <div>
@@ -52,14 +52,14 @@ export function renderLogin(container) {
           <div class="login-card-eyebrow">ACESSO À PLATAFORMA</div>
           <h2 class="login-card-title">Iniciar sessão</h2>
           <p class="login-card-lead">
-            Identifique-se com o seu email corporativo e password.
+            Identifique-se com o seu email corporativo e palavra-passe.
           </p>
 
           <label class="form-label" for="login-email">Email</label>
           <input id="login-email" type="email" class="form-input"
             placeholder="ex.: joao@algartempo.pt" autocomplete="email" />
 
-          <label class="form-label" for="login-password">Password</label>
+          <label class="form-label" for="login-password">Palavra-passe</label>
           <input id="login-password" type="password" class="form-input"
             placeholder="••••••••" autocomplete="current-password" />
 
@@ -105,7 +105,7 @@ export function renderLogin(container) {
     } catch (err) {
       console.error(err);
       const errorMsg = err.code === 'auth/invalid-credential'
-        ? 'Email ou password incorretos.'
+        ? 'Email ou palavra-passe incorretos.'
         : 'Erro ao aceder à plataforma. Verifique a ligação e tente novamente.';
       showError(errorMsg);
       setLoading(false);

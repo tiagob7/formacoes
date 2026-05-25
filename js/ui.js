@@ -23,17 +23,28 @@ export function renderShell(activeView) {
     <div class="nav-label">GESTÃO</div>
     ${navItem('edit', 'Conteúdos', activeView === 'conteudos', '/conteudos')}` : '';
 
-  const roleLabel = { administrador: 'Administrador', gestor_conteudos: 'Gestor Conteúdos', colaborador: 'Colaborador' }[role] || role;
+  const roleLabel = { administrador: 'Administrador', gestor_conteudos: 'Gestor de conteúdos', colaborador: 'Colaborador' }[role] || role;
 
   return `
+    <header class="mobile-shell-bar">
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir navegação" aria-expanded="false">
+        ${icon('menu', 20)}
+      </button>
+      <img src="assets/logo-color.png" alt="AlgarTempo" class="mobile-shell-logo" />
+      <div class="mobile-shell-role">${roleLabel}</div>
+    </header>
+    <div class="mobile-nav-overlay" id="mobile-nav-overlay" aria-hidden="true"></div>
     <aside class="sidebar">
       <div class="sidebar-brand">
         <img src="assets/logo-white.png" alt="AlgarTempo" class="sidebar-brand-logo" />
         <div class="sidebar-brand-pill">FORMAÇÕES</div>
+        <button class="mobile-sidebar-close" id="mobile-sidebar-close" aria-label="Fechar navegação">
+          ${icon('x', 18)}
+        </button>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-label">PRINCIPAL</div>
-        ${navItem('home',  'Dashboard', activeView === 'dashboard', '/dashboard')}
+        ${navItem('home',  'Painel', activeView === 'dashboard', '/dashboard')}
         ${adminNav}
         ${gestorNav}
       </nav>
@@ -119,10 +130,41 @@ export function renderInlineNotice({ type = 'info', title, message }) {
 /* ------------------------------------------------------------------ */
 /* Shell wiring (logout button)                                         */
 /* ------------------------------------------------------------------ */
+let closeMobileNav = () => {};
+let mobileNavKeydownBound = false;
+
 export function wireShell() {
+  const shell = document.querySelector('.app-shell');
+  const menuBtn = document.getElementById('mobile-menu-btn');
+  const closeBtn = document.getElementById('mobile-sidebar-close');
+  const overlay = document.getElementById('mobile-nav-overlay');
+
+  const setMobileNav = (open) => {
+    if (!shell) return;
+    shell.classList.toggle('nav-open', open);
+    document.body.classList.toggle('mobile-nav-open', open);
+    menuBtn?.setAttribute('aria-expanded', String(open));
+    overlay?.setAttribute('aria-hidden', String(!open));
+  };
+
+  menuBtn?.addEventListener('click', () => setMobileNav(true));
+  closeBtn?.addEventListener('click', () => setMobileNav(false));
+  overlay?.addEventListener('click', () => setMobileNav(false));
+  closeMobileNav = () => setMobileNav(false);
+  if (!mobileNavKeydownBound) {
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMobileNav();
+    });
+    mobileNavKeydownBound = true;
+  }
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => setMobileNav(false));
+  });
+
   const btn = document.getElementById('logout-btn');
   if (btn) {
     btn.addEventListener('click', async () => {
+      setMobileNav(false);
       await logoutEmployee();
       navigate('/login');
     });

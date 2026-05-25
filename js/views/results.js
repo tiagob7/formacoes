@@ -25,7 +25,7 @@ export async function renderResults(container, { courseId, moduleId }) {
       iconName: 'info',
       title: 'Resultados indisponíveis',
       message: 'A formação ou o módulo associado pode ter sido removido.',
-      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao dashboard</button>`,
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao painel</button>`,
     });
     return;
   }
@@ -74,7 +74,7 @@ export async function renderResults(container, { courseId, moduleId }) {
     <div class="topbar">
       <div>
         <div class="breadcrumbs">
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Dashboard</span>
+          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Painel</span>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
           <span style="cursor:pointer;color:var(--ink-3)" onclick="history.go(-2)">${course.title}</span>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
@@ -111,11 +111,11 @@ export async function renderResults(container, { courseId, moduleId }) {
       <div class="results-stats">
         <div class="result-stat">
           <div class="result-stat-n" style="color:var(--green)">${correct}</div>
-          <div class="result-stat-l">Respostas correctas</div>
+          <div class="result-stat-l">Respostas corretas</div>
         </div>
         <div class="result-stat">
           <div class="result-stat-n" style="color:var(--red)">${questions.length - correct}</div>
-          <div class="result-stat-l">Respostas incorrectas</div>
+          <div class="result-stat-l">Respostas incorretas</div>
         </div>
         <div class="result-stat">
           <div class="result-stat-n">${questions.length}</div>
@@ -177,8 +177,8 @@ function questionReview(q, i, answer) {
       </div>
       <div class="result-q-answer">
         ${isCorrect
-          ? `Resposta correcta: <strong>${correctText}</strong>`
-          : `A sua resposta: <strong>${answerText}</strong> · Correcto: <strong>${correctText}</strong>`}
+          ? `Resposta correta: <strong>${correctText}</strong>`
+          : `A sua resposta: <strong>${answerText}</strong> · Correto: <strong>${correctText}</strong>`}
       </div>
       ${!isCorrect && q.explanation
         ? `<div class="result-q-explanation">${icon('info', 12, 'var(--amber)')} ${q.explanation}</div>`

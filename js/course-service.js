@@ -108,9 +108,20 @@ export function globalProgress(courses, progress) {
 }
 
 export function getResumeCourse(courses, progress) {
+  return getResumeTarget(courses, progress)?.course || null;
+}
+
+export function getResumeTarget(courses, progress) {
+  if (!Array.isArray(courses)) return null;
+
   for (const course of courses) {
     const p = courseProgress(course, progress || {});
-    if (p.pct > 0 && p.pct < 100) return course;
+    if (p.started > 0 && p.completed < p.total) {
+      const cp = progress?.[course.id] || {};
+      const module = course.modules.find(mod => !cp[mod.id]?.quizPassed) || course.modules[0];
+      return { course, module, progress: p };
+    }
   }
+
   return null;
 }

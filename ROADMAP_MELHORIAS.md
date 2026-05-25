@@ -35,7 +35,7 @@ Objetivo: alinhar dados, seguranca e funcionalidades existentes antes de adicion
 | [x] | P0 | Atualizar documentacao Firebase | `SETUP_FIREBASE.md` reflete a arquitetura atual |
 | [x] | P1 | Remover ou esconder placeholders | Certificados, notificacoes e pesquisa nao aparecem como funcionais sem estarem ligados |
 | [x] | P1 | Tratar estados de erro e loading | Ecras mostram mensagens claras quando dados falham ou estao a carregar |
-| [ ] | P1 | Normalizar textos e nomenclatura | Portugues consistente: sessao, formacao, avaliacao, utilizador, colaborador |
+| [x] | P1 | Normalizar textos e nomenclatura | Portugues consistente: sessao, formacao, avaliacao, utilizador, colaborador |
 
 ### Notas
 
@@ -52,15 +52,15 @@ Objetivo: tornar a experiencia mais clara, responsiva e eficiente para quem faz 
 | Estado | Prioridade | Melhoria | Criterio de conclusao |
 |---|---:|---|---|
 | [~] | P0 | Responsividade mobile/tablet | Login, dashboard, modulo, quiz e resultados funcionam em ecras pequenos |
-| [ ] | P1 | Sidebar colapsavel ou navegacao mobile | Colaborador consegue navegar confortavelmente em mobile |
-| [~] | P1 | Filtros no dashboard | Filtrar por categoria, estado e pesquisa textual |
+| [x] | P1 | Sidebar colapsavel ou navegacao mobile | Colaborador consegue navegar confortavelmente em mobile |
+| [x] | P1 | Filtros no dashboard | Filtrar por categoria, estado e pesquisa textual |
 | [x] | P1 | Pesquisa real no dashboard | Campo de pesquisa filtra formacoes por titulo, subtitulo e categoria |
 | [x] | P1 | Pagina de detalhe da formacao | Antes do modulo, mostrar objetivos, duracao, modulos, progresso e CTA |
-| [ ] | P1 | Melhorar estado "continuar onde parou" | Retoma o modulo correto e mostra progresso contextual |
-| [ ] | P1 | Melhorar leitor de modulo | Estados claros: por ler, lido, quiz disponivel, concluido |
+| [x] | P1 | Melhorar estado "continuar onde parou" | Retoma o modulo correto e mostra progresso contextual |
+| [x] | P1 | Melhorar leitor de modulo | Estados claros: por ler, lido, quiz disponivel, concluido |
 | [ ] | P2 | Modo rever formacao | Rever modulo concluido sem parecer que esta a refazer progresso |
 | [ ] | P2 | Melhorar feedback visual do quiz | Revisao mais clara, com explicacoes e resumo por tema |
-| [ ] | P2 | Acessibilidade basica | Foco visivel, labels, contraste, navegacao por teclado |
+| [x] | P2 | Acessibilidade basica | Foco visivel, labels, contraste, navegacao por teclado |
 
 ### Notas
 

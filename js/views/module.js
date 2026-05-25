@@ -1,7 +1,7 @@
-import { icon }                                          from '../icons.js';
-import { getCourseById, getModuleById, courseProgress }   from '../course-service.js';
-import { getState, setState, updateModuleProgress }       from '../state.js';
-import { navigate }                                       from '../router.js';
+import { icon } from '../icons.js';
+import { getCourseById, getModuleById, courseProgress } from '../course-service.js';
+import { getState, setState, updateModuleProgress } from '../state.js';
+import { navigate } from '../router.js';
 import { saveModuleProgress, getModulePdfUrl, uploadModulePDF } from '../firebase-service.js';
 import { showToast, renderLoadingState, renderEmptyState, renderInlineNotice } from '../ui.js';
 
@@ -12,37 +12,36 @@ export async function renderModule(container, { courseId, moduleId }) {
   const { user, progress } = getState();
   let course = null;
   let mod = null;
+
   try {
     course = await getCourseById(courseId);
     mod = await getModuleById(courseId, moduleId);
   } catch (err) {
     console.error(err);
   }
+
   if (!course || !mod) {
     container.innerHTML = renderEmptyState({
       iconName: 'info',
       title: 'Módulo não encontrado',
       message: 'O módulo pode ter sido removido ou ainda não estar publicado.',
-      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao dashboard</button>`,
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao painel</button>`,
     });
     return;
   }
 
-  const cp       = progress?.[courseId]?.[moduleId] || {};
-  const isRead   = !!cp.read;
-  const isPassed = !!cp.quizPassed;
+  const cp = progress?.[courseId]?.[moduleId] || {};
+  const moduleState = getModuleLearningState(cp);
 
-  // Fetch PDF URL from Firebase (may be null)
   let pdfUrl = null;
   let pdfError = false;
   try { pdfUrl = await getModulePdfUrl(courseId, moduleId); } catch { pdfError = true; }
 
-  // Calculate sidebar progress
   const { completed, total } = courseProgress(course, progress);
   const pct = Math.round((completed / total) * 100);
 
   container.innerHTML = `
-    ${topBar(course, courseId)}
+    ${topBar(course)}
     ${pdfError ? renderInlineNotice({
       type: 'warning',
       title: 'PDF indisponível',
@@ -51,44 +50,24 @@ export async function renderModule(container, { courseId, moduleId }) {
     <div class="module-layout">
       ${moduleSidebar(course, moduleId, progress, pct, completed, total)}
       <div class="module-main">
-        ${pdfToolbar(mod, course, user, pdfUrl)}
+        ${pdfToolbar(mod, user, pdfUrl, moduleState)}
         <div class="pdf-content" id="pdf-content">
           ${pdfUrl
-            ? `<div class="pdf-iframe-wrapper" style="flex:1;height:100%;min-height:600px">
+            ? `<div class="pdf-iframe-wrapper">
                  <iframe src="${pdfUrl}" class="pdf-iframe" title="${mod.title}"></iframe>
                </div>`
             : renderDocumentContent(mod, course)}
         </div>
-        <div class="read-notice ${isRead || isPassed ? 'done' : ''}" id="read-notice">
-          <div class="read-notice-text">
-            ${isRead || isPassed
-              ? `${icon('check', 16, 'var(--green)')} <strong>Leitura concluída.</strong> Pode iniciar a avaliação.`
-              : `${icon('info', 16, 'var(--amber)')} <strong>Leia o módulo completo</strong> antes de iniciar a avaliação.`}
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-            ${!isRead && !isPassed
-              ? `<button class="btn-sm primary" id="btn-mark-read">
-                   ${icon('check', 14)} Marcar como lido
-                 </button>`
-              : ''}
-            <button class="btn-sm primary" id="btn-start-quiz" ${!isRead && !isPassed ? 'disabled' : ''}>
-              Iniciar avaliação ${icon('arrowRight', 13)}
-            </button>
-          </div>
-        </div>
+        ${moduleActionBar(moduleState)}
       </div>
     </div>`;
 
-  // Sidebar module navigation
   container.querySelectorAll('.module-item').forEach(el => {
     el.addEventListener('click', () => {
-      const cid = el.dataset.courseId;
-      const mid = el.dataset.moduleId;
-      navigate(`/module/${cid}/${mid}`);
+      navigate(`/module/${el.dataset.courseId}/${el.dataset.moduleId}`);
     });
   });
 
-  // Mark as read
   const btnRead = document.getElementById('btn-mark-read');
   if (btnRead) {
     btnRead.addEventListener('click', async () => {
@@ -97,36 +76,22 @@ export async function renderModule(container, { courseId, moduleId }) {
       try {
         await saveModuleProgress(user.email, courseId, moduleId,
           { ...progress?.[courseId]?.[moduleId], read: true });
-      } catch (e) { console.warn(e); }
-      // Re-render notice
-      const notice = document.getElementById('read-notice');
-      notice.className = 'read-notice done';
-      notice.innerHTML = `
-        <div class="read-notice-text">
-          ${icon('check', 16, 'var(--green)')} <strong>Leitura concluída.</strong> Pode iniciar a avaliação.
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-          <button class="btn-sm primary" id="btn-start-quiz">
-            Iniciar avaliação ${icon('arrowRight', 13)}
-          </button>
-        </div>`;
-      document.getElementById('btn-start-quiz').addEventListener('click', () => {
-        navigate(`/quiz/${courseId}/${moduleId}`);
-      });
+      } catch (e) {
+        console.warn(e);
+      }
+      renderModule(container, { courseId, moduleId });
     });
   }
 
-  // Start quiz
   const btnQuiz = document.getElementById('btn-start-quiz');
   if (btnQuiz && !btnQuiz.disabled) {
     btnQuiz.addEventListener('click', () => navigate(`/quiz/${courseId}/${moduleId}`));
   }
 
-  // Upload PDF (admin only)
   const btnUpload = document.getElementById('btn-upload-pdf');
   if (btnUpload) {
     btnUpload.addEventListener('click', () => openUploadModal(courseId, moduleId, () => {
-      navigate(`/module/${courseId}/${moduleId}`); // refresh
+      navigate(`/module/${courseId}/${moduleId}`);
     }));
   }
 }
@@ -135,12 +100,12 @@ export async function renderModule(container, { courseId, moduleId }) {
 /* Sub-renderers                                                        */
 /* ------------------------------------------------------------------ */
 
-function topBar(course, courseId) {
+function topBar(course) {
   return `
     <div class="topbar">
       <div>
         <div class="breadcrumbs">
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Dashboard</span>
+          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Painel</span>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
           <span class="breadcrumb-current">${course.title}</span>
         </div>
@@ -155,22 +120,92 @@ function topBar(course, courseId) {
     </div>`;
 }
 
+function getModuleLearningState(moduleProgress = {}) {
+  if (moduleProgress.quizPassed) {
+    return {
+      key: 'completed',
+      label: 'Concluído',
+      title: 'Módulo concluído',
+      message: 'A avaliação deste módulo já foi concluída com sucesso.',
+      iconName: 'check',
+      iconColor: 'var(--green)',
+      canStartQuiz: true,
+      showMarkRead: false,
+    };
+  }
+
+  if (moduleProgress.read) {
+    return {
+      key: 'ready',
+      label: 'Avaliação disponível',
+      title: 'Leitura concluída',
+      message: 'Já pode iniciar a avaliação deste módulo.',
+      iconName: 'award',
+      iconColor: 'var(--cyan-2)',
+      canStartQuiz: true,
+      showMarkRead: false,
+    };
+  }
+
+  return {
+    key: 'unread',
+    label: 'Por ler',
+    title: 'Leitura pendente',
+    message: 'Leia o módulo completo e marque-o como lido para desbloquear a avaliação.',
+    iconName: 'info',
+    iconColor: 'var(--amber)',
+    canStartQuiz: false,
+    showMarkRead: true,
+  };
+}
+
+function moduleStatusBadge(state) {
+  return `
+    <span class="module-state-badge ${state.key}">
+      ${icon(state.iconName, 12, 'currentColor')}
+      ${state.label}
+    </span>`;
+}
+
+function moduleActionBar(state) {
+  return `
+    <div class="read-notice ${state.key}" id="read-notice">
+      <div class="read-notice-text">
+        ${icon(state.iconName, 16, state.iconColor)}
+        <span>
+          <strong>${state.title}.</strong>
+          ${state.message}
+        </span>
+      </div>
+      <div class="module-actions">
+        ${state.showMarkRead
+          ? `<button class="btn-sm primary" id="btn-mark-read">
+               ${icon('check', 14)} Marcar como lido
+             </button>`
+          : ''}
+        <button class="btn-sm primary" id="btn-start-quiz" ${state.canStartQuiz ? '' : 'disabled'}>
+          Iniciar avaliação ${icon('arrowRight', 13)}
+        </button>
+      </div>
+    </div>`;
+}
+
 function moduleSidebar(course, activeModuleId, progress, pct, completed, total) {
-  const items = course.modules.map((m, i) => {
-    const mp       = progress?.[course.id]?.[m.id] || {};
-    const isActive = m.id === activeModuleId;
-    const isDone   = !!mp.quizPassed;
+  const items = course.modules.map((mod, index) => {
+    const state = getModuleLearningState(progress?.[course.id]?.[mod.id] || {});
+    const isActive = mod.id === activeModuleId;
     return `
-      <div class="module-item ${isActive ? 'active' : ''} ${isDone ? 'completed' : ''}"
-           data-course-id="${course.id}" data-module-id="${m.id}">
+      <div class="module-item ${isActive ? 'active' : ''} ${state.key}"
+           data-course-id="${course.id}" data-module-id="${mod.id}">
         <div class="module-num">
-          ${isDone
+          ${state.key === 'completed'
             ? `<span class="check-anim">${icon('check', 13, 'var(--green)', 2.5)}</span>`
-            : i + 1}
+            : index + 1}
         </div>
-        <div>
-          <div class="module-name">${m.title}</div>
-          <div class="module-duration">${icon('clock', 11, 'var(--ink-3)')} ${m.duration}</div>
+        <div class="module-item-body">
+          <div class="module-name">${mod.title}</div>
+          <div class="module-duration">${icon('clock', 11, 'var(--ink-3)')} ${mod.duration || 'Duração por definir'}</div>
+          <div class="module-sidebar-status">${state.label}</div>
         </div>
       </div>`;
   }).join('');
@@ -192,14 +227,15 @@ function moduleSidebar(course, activeModuleId, progress, pct, completed, total) 
     </div>`;
 }
 
-function pdfToolbar(mod, course, user, pdfUrl) {
+function pdfToolbar(mod, user, pdfUrl, state) {
   const canUpload = user?.role && (user.role === 'gestor_conteudos' || user.role === 'administrador');
   return `
     <div class="pdf-toolbar">
       <div class="pdf-toolbar-left">
         ${icon('pdf', 18, 'var(--red)')}
         <span class="pdf-file-name">${mod.title}</span>
-        <span class="pdf-pages">${pdfUrl ? 'PDF carregado' : mod.pages + ' páginas'}</span>
+        <span class="pdf-pages">${pdfUrl ? 'PDF carregado' : `${mod.pages || 1} páginas`}</span>
+        ${moduleStatusBadge(state)}
       </div>
       <div class="pdf-toolbar-right">
         ${pdfUrl
@@ -220,11 +256,11 @@ function renderDocumentContent(mod, course) {
   const hasContent = Array.isArray(mod.content) && mod.content.length > 0;
   const blocks = hasContent ? mod.content.map(block => {
     switch (block.type) {
-      case 'h1':      return `<h2 class="doc-h1">${block.text}</h2>`;
-      case 'lead':    return `<p class="doc-lead">${block.text}</p>`;
-      case 'h2':      return `<h3 class="doc-h2">${block.text}</h3>`;
-      case 'p':       return `<p class="doc-p">${block.text}</p>`;
-      case 'list':    return `<ul class="doc-list">${block.items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+      case 'h1': return `<h2 class="doc-h1">${block.text}</h2>`;
+      case 'lead': return `<p class="doc-lead">${block.text}</p>`;
+      case 'h2': return `<h3 class="doc-h2">${block.text}</h3>`;
+      case 'p': return `<p class="doc-p">${block.text}</p>`;
+      case 'list': return `<ul class="doc-list">${block.items.map(i => `<li>${i}</li>`).join('')}</ul>`;
       case 'callout': return `
         <div class="doc-callout">
           <div class="callout-label">${block.label}</div>
@@ -248,7 +284,7 @@ function renderDocumentContent(mod, course) {
       <div class="pdf-page-body">${blocks}</div>
       <div class="pdf-page-footer">
         <span>Plataforma de Formações ALGARTEMPO</span>
-        <span>${mod.pages} páginas</span>
+        <span>${mod.pages || 1} páginas</span>
       </div>
     </div>`;
 }
@@ -264,18 +300,18 @@ function openUploadModal(courseId, moduleId, onSuccess) {
   overlay.innerHTML = `
     <div class="upload-modal">
       <h3 class="upload-modal-title">Carregar PDF do módulo</h3>
-      <p class="upload-modal-sub">Seleccione um ficheiro PDF para este módulo. Ficará disponível para todos os colaboradores.</p>
+      <p class="upload-modal-sub">Selecione um ficheiro PDF para este módulo. Ficará disponível para todos os colaboradores.</p>
       <div class="upload-drop" id="upload-drop">
         <div class="upload-drop-icon">${icon('upload', 32, 'var(--ink-3)')}</div>
-        <div class="upload-drop-text">Arraste o PDF aqui ou clique para seleccionar</div>
+        <div class="upload-drop-text">Arraste o PDF aqui ou clique para selecionar</div>
         <div class="upload-drop-hint">Apenas ficheiros .pdf · Max 50 MB</div>
         <div class="upload-file-name" id="upload-file-name" style="display:none"></div>
       </div>
       <input type="file" id="upload-input" accept="application/pdf" style="display:none" />
       <div id="upload-progress-wrap" style="display:none;margin-top:12px">
-        <div class="upload-modal-sub" id="upload-progress-label">A carregar… 0%</div>
-        <div class="upload-progress-bar" style="height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px">
-          <div id="upload-progress-fill" style="height:100%;width:0;background:linear-gradient(90deg,var(--cyan),#00C8FF);border-radius:3px;transition:width .2s"></div>
+        <div class="upload-modal-sub" id="upload-progress-label">A carregar... 0%</div>
+        <div class="upload-progress-bar">
+          <div id="upload-progress-fill"></div>
         </div>
       </div>
       <div class="upload-actions">
@@ -288,14 +324,17 @@ function openUploadModal(courseId, moduleId, onSuccess) {
 
   document.body.appendChild(overlay);
 
-  const drop     = overlay.querySelector('#upload-drop');
-  const input    = overlay.querySelector('#upload-input');
+  const drop = overlay.querySelector('#upload-drop');
+  const input = overlay.querySelector('#upload-input');
   const fileName = overlay.querySelector('#upload-file-name');
-  const confirm  = overlay.querySelector('#upload-confirm');
-  const cancel   = overlay.querySelector('#upload-cancel');
+  const confirm = overlay.querySelector('#upload-confirm');
+  const cancel = overlay.querySelector('#upload-cancel');
 
   function pickFile(file) {
-    if (!file || file.type !== 'application/pdf') { showToast('Seleccione um ficheiro PDF válido.', 'error'); return; }
+    if (!file || file.type !== 'application/pdf') {
+      showToast('Selecione um ficheiro PDF válido.', 'error');
+      return;
+    }
     selectedFile = file;
     fileName.textContent = file.name;
     fileName.style.display = 'block';
@@ -303,7 +342,7 @@ function openUploadModal(courseId, moduleId, onSuccess) {
   }
 
   drop.addEventListener('click', () => input.click());
-  drop.addEventListener('dragover',  e => { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag-over'); pickFile(e.dataTransfer.files[0]); });
   input.addEventListener('change', () => pickFile(input.files[0]));
@@ -312,13 +351,14 @@ function openUploadModal(courseId, moduleId, onSuccess) {
 
   confirm.addEventListener('click', async () => {
     if (!selectedFile) return;
-    confirm.disabled = true; cancel.disabled = true;
+    confirm.disabled = true;
+    cancel.disabled = true;
     overlay.querySelector('#upload-progress-wrap').style.display = 'block';
 
     try {
       await uploadModulePDF(courseId, moduleId, selectedFile, (pct) => {
-        overlay.querySelector('#upload-progress-fill').style.width = pct + '%';
-        overlay.querySelector('#upload-progress-label').textContent = `A carregar… ${pct}%`;
+        overlay.querySelector('#upload-progress-fill').style.width = `${pct}%`;
+        overlay.querySelector('#upload-progress-label').textContent = `A carregar... ${pct}%`;
       });
       overlay.remove();
       showToast('PDF carregado com sucesso!', 'success');
@@ -326,7 +366,8 @@ function openUploadModal(courseId, moduleId, onSuccess) {
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Erro ao carregar o PDF.', 'error');
-      confirm.disabled = false; cancel.disabled = false;
+      confirm.disabled = false;
+      cancel.disabled = false;
     }
   });
 }

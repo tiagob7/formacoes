@@ -20,7 +20,7 @@ export async function renderCourseDetail(container, { courseId }) {
       iconName: 'info',
       title: 'Formação não encontrada',
       message: 'Esta formação pode ter sido removida ou ainda não estar publicada.',
-      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao dashboard</button>`,
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao painel</button>`,
     });
     return;
   }
@@ -34,7 +34,7 @@ export async function renderCourseDetail(container, { courseId }) {
     <div class="topbar">
       <div>
         <div class="breadcrumbs">
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Dashboard</span>
+          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Painel</span>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
           <span class="breadcrumb-current">${course.title}</span>
         </div>

@@ -22,7 +22,7 @@ export async function renderQuiz(container, { courseId, moduleId }) {
       iconName: 'info',
       title: 'Avaliação não encontrada',
       message: 'A formação ou o módulo associado pode ter sido removido.',
-      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao dashboard</button>`,
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao painel</button>`,
     });
     return;
   }
@@ -48,7 +48,7 @@ export async function renderQuiz(container, { courseId, moduleId }) {
       <div class="empty-state">
         <div class="empty-state-inner">
           <div class="empty-state-icon">${icon('info', 32, 'var(--ink-3)')}</div>
-          <div class="empty-state-title">Este módulo ainda não tem quiz</div>
+          <div class="empty-state-title">Este módulo ainda não tem avaliação</div>
           <div class="empty-state-sub">Quando o gestor publicar perguntas, a avaliação ficará disponível.</div>
           <button class="btn-next" onclick="navigate('/module/${courseId}/${moduleId}')">Voltar ao módulo</button>
         </div>
