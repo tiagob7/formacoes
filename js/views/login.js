@@ -18,7 +18,7 @@ export function renderLogin(container) {
 
         <div class="login-hero">
           <div class="login-eyebrow">BEM-VINDO DE VOLTA</div>
-          <h1 class="login-title">O conhecimento que faz&nbsp;a diferença.</h1>
+          <h1 class="login-title">O conhecimento que faz&nbsp;<span class="accent">a diferença.</span></h1>
           <p class="login-lead">
             Aceda às suas formações internas, complete módulos ao seu ritmo e
             certifique as competências essenciais para o seu percurso profissional.
