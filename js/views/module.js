@@ -302,7 +302,7 @@ function renderDocumentContent(mod, course) {
   return `
     <div class="pdf-page">
       <div class="pdf-page-header">
-        <img src="assets/logo-color.png" alt="AlgarTempo" class="pdf-header-logo" />
+        <img src="assets/logo-color.png" alt="Algartempo" class="pdf-header-logo" />
         <span class="pdf-header-title">${course.title}</span>
       </div>
       <div class="pdf-page-body">${blocks}</div>

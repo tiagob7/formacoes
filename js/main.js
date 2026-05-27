@@ -1,5 +1,5 @@
 /**
- * AlgarTempo Formações — Entry point
+ * Algartempo Formações — Entry point
  * Initialises the router, checks for an existing session,
  * and mounts the correct view.
  */
@@ -13,10 +13,12 @@ import { renderCourseDetail }           from './views/course-detail.js';
 import { renderModule }                 from './views/module.js';
 import { renderQuiz }                   from './views/quiz.js';
 import { renderResults }                from './views/results.js';
-import { renderAdmin }                  from './views/admin.js';
+import { renderAdmin as renderAdministration }  from './views/admin.js';
+import { renderUtilizadores }           from './views/utilizadores.js';
 import { renderContentManager }         from './views/content-manager.js';
 import { renderCertificates }           from './views/certificates.js';
 import { renderNotifications }          from './views/notifications.js';
+import { renderAudit }                  from './views/audit.js';
 
 const app = document.getElementById('app');
 
@@ -24,10 +26,13 @@ const app = document.getElementById('app');
 /* Route helpers                                                        */
 /* ------------------------------------------------------------------ */
 
-function requireAuth(requiredRole = null) {
+function requireAuth(requiredRoles = null) {
   const { user } = getState();
   if (!user) { navigate('/login'); return false; }
-  if (requiredRole && !hasRole(user.role, requiredRole)) { navigate('/dashboard'); return false; }
+  if (requiredRoles) {
+    const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+    if (!roles.includes(user.role)) { navigate('/dashboard'); return false; }
+  }
   return true;
 }
 
@@ -98,20 +103,36 @@ route('notifications', async () => {
   await renderNotifications(main);
 });
 
-route('admin', async () => {
+route('administration', async () => {
   const v = currentRouteVersion();
   if (!requireAuth('administrador')) return;
   if (!isCurrentRoute(v)) return;
-  const main = mountShell('admin');
-  await renderAdmin(main);
+  const main = mountShell('administration');
+  await renderAdministration(main);
+});
+
+route('utilizadores', async () => {
+  const v = currentRouteVersion();
+  if (!requireAuth(['administrador', 'gestor_colaboradores'])) return;
+  if (!isCurrentRoute(v)) return;
+  const main = mountShell('utilizadores');
+  await renderUtilizadores(main);
 });
 
 route('conteudos', async () => {
   const v = currentRouteVersion();
-  if (!requireAuth('gestor_conteudos')) return;
+  if (!requireAuth(['gestor_conteudos', 'administrador'])) return;
   if (!isCurrentRoute(v)) return;
   const main = mountShell('conteudos');
   await renderContentManager(main);
+});
+
+route('auditoria', async () => {
+  const v = currentRouteVersion();
+  if (!requireAuth(['administrador', 'gestor_conteudos', 'gestor_colaboradores'])) return;
+  if (!isCurrentRoute(v)) return;
+  const main = mountShell('auditoria');
+  await renderAudit(main);
 });
 
 /* ------------------------------------------------------------------ */

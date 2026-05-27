@@ -94,7 +94,7 @@ function certCard(course, progress, user) {
         <div class="cert-card-title">${course.title}</div>
         <div class="cert-card-date">${icon('check', 12, 'var(--green)')} Concluído em ${dateStr}</div>
       </div>
-      <button class="btn-primary cert-card-btn" data-cert="${course.id}">
+      <button class="btn-ghost cert-card-btn" data-cert="${course.id}">
         ${icon('download', 13)} Descarregar
       </button>
     </div>`;

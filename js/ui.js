@@ -1,5 +1,5 @@
 import { icon }         from './icons.js';
-import { getState }     from './state.js';
+import { getState, setState } from './state.js';
 import { navigate }     from './router.js';
 import { logoutEmployee } from './firebase-service.js';
 import { getCachedCourses } from './course-service.js';
@@ -18,47 +18,68 @@ export function renderShell(activeView) {
   const adminNav = role === 'administrador' ? `
     <div class="nav-spacer"></div>
     <div class="nav-label">ADMINISTRAÇÃO</div>
-    ${navItem('settings', 'Admin', activeView === 'admin', '/admin')}
-    ${navItem('edit', 'Conteúdos', activeView === 'conteudos', '/conteudos')}` : '';
+    ${navItem('lock',     'Administração',   activeView === 'administration', '/administration')}
+    ${navItem('user',     'Utilizadores',    activeView === 'utilizadores',  '/utilizadores')}
+    ${navItem('edit',     'Conteúdos',       activeView === 'conteudos',     '/conteudos')}
+    ${navItem('activity', 'Auditoria',       activeView === 'auditoria',     '/auditoria')}` : '';
 
-  const gestorNav = role === 'gestor_conteudos' ? `
+  const gestorConteudosNav = role === 'gestor_conteudos' ? `
     <div class="nav-spacer"></div>
     <div class="nav-label">GESTÃO</div>
-    ${navItem('edit', 'Conteúdos', activeView === 'conteudos', '/conteudos')}` : '';
+    ${navItem('edit', 'Conteúdos', activeView === 'conteudos', '/conteudos')}
+    ${navItem('activity', 'Auditoria', activeView === 'auditoria', '/auditoria')}` : '';
 
-  const roleLabel = { administrador: 'Administrador', gestor_conteudos: 'Gestor de conteúdos', colaborador: 'Colaborador' }[role] || role;
+  const gestorColaboradoresNav = role === 'gestor_colaboradores' ? `
+    <div class="nav-spacer"></div>
+    <div class="nav-label">GESTÃO</div>
+    ${navItem('user', 'Utilizadores', activeView === 'utilizadores', '/utilizadores')}
+    ${navItem('activity', 'Auditoria', activeView === 'auditoria', '/auditoria')}` : '';
+
+  const roleLabel = { administrador: 'Administrador', gestor_conteudos: 'Gestor de conteúdos', gestor_colaboradores: 'Gestor de Colaboradores', colaborador: 'Colaborador' }[role] || role;
+
+  const notifBadge = unreadNotifications
+    ? `<span class="sidebar-notif-badge">${unreadNotifications}</span>` : '';
 
   return `
     <header class="mobile-shell-bar">
       <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir navegação" aria-expanded="false">
         ${icon('menu', 20)}
       </button>
-      <img src="assets/logo-color.png" alt="AlgarTempo" class="mobile-shell-logo" />
+      <img src="assets/logo-color.png" alt="Algartempo" class="mobile-shell-logo" />
       <div class="mobile-shell-role">${roleLabel}</div>
     </header>
     <div class="mobile-nav-overlay" id="mobile-nav-overlay" aria-hidden="true"></div>
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <img src="assets/logo-white.png" alt="AlgarTempo" class="sidebar-brand-logo" />
-        <div class="sidebar-brand-pill">FORMAÇÕES</div>
+        <div class="sidebar-brand-text">
+          <div class="sidebar-brand-name">Formações</div>
+          <div class="sidebar-brand-tag">Plataforma de E-Learning</div>
+        </div>
         <button class="mobile-sidebar-close" id="mobile-sidebar-close" aria-label="Fechar navegação">
           ${icon('x', 18)}
         </button>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-label">PRINCIPAL</div>
-        ${navItem('home',     'Painel',         activeView === 'dashboard',    '/dashboard')}
-        ${navItem('bell',     'Notificações',   activeView === 'notifications','/notifications', unreadNotifications || '')}
-        ${navItem('award',    'Certificados',   activeView === 'certificates', '/certificates')}
+        ${navItem('home',  'Formações',   activeView === 'dashboard',   '/dashboard')}
+        ${navItem('award', 'Certificados', activeView === 'certificates', '/certificates')}
         ${adminNav}
-        ${gestorNav}
+        ${gestorConteudosNav}
+        ${gestorColaboradoresNav}
       </nav>
+      <div class="sidebar-logo-secondary">
+        <img src="assets/logo-vertical-white.png" alt="Algartempo" />
+      </div>
       <div class="sidebar-user">
         <div class="avatar">${initial}</div>
         <div style="flex:1;min-width:0">
           <div class="user-name">${user?.name || ''}</div>
           <div class="user-meta">${roleLabel}</div>
         </div>
+        <button class="sidebar-icon-btn ${activeView === 'notifications' ? 'active' : ''}"
+                data-nav-path="/notifications" title="Notificações" aria-label="Notificações" style="position:relative">
+          ${icon('bell', 16)}${notifBadge}
+        </button>
         <button class="logout-btn" id="logout-btn" title="Terminar sessão" aria-label="Terminar sessão">
           ${icon('logout', 16)}
         </button>
@@ -164,7 +185,7 @@ export function wireShell() {
     });
     mobileNavKeydownBound = true;
   }
-  document.querySelectorAll('.nav-item').forEach(item => {
+  document.querySelectorAll('.nav-item, .sidebar-icon-btn').forEach(item => {
     item.addEventListener('click', () => {
       setMobileNav(false);
       const path = item.dataset.navPath;
@@ -176,6 +197,7 @@ export function wireShell() {
   if (btn) {
     btn.addEventListener('click', async () => {
       setMobileNav(false);
+      setState({ user: null });
       await logoutEmployee();
       navigate('/login');
     });

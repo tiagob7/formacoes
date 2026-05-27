@@ -10,8 +10,10 @@
  *   #/results/:courseId/:moduleId
  *   #/certificates
  *   #/notifications
- *   #/admin
+ *   #/administration
+ *   #/utilizadores
  *   #/conteudos
+ *   #/auditoria
  */
 
 import { setState, getState } from './state.js';

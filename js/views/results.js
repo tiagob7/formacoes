@@ -2,7 +2,7 @@ import { icon }                                      from '../icons.js';
 import { getCourseById, getModuleById, courseProgress, isCourseVisibleToUser } from '../course-service.js';
 import { getState, updateModuleProgress }             from '../state.js';
 import { navigate }                                   from '../router.js';
-import { saveModuleProgress }                         from '../firebase-service.js';
+import { saveModuleProgress, logAuditEvent }           from '../firebase-service.js';
 import { renderLoadingState, renderEmptyState, renderInlineNotice } from '../ui.js';
 import { openCertificate }                            from '../certificate-service.js';
 
@@ -80,6 +80,11 @@ export async function renderResults(container, { courseId, moduleId }) {
   updateModuleProgress(courseId, moduleId, modData);
   try {
     await saveModuleProgress(user.email, courseId, moduleId, modData);
+    if (passed) {
+      await logAuditEvent('complete_quiz', user.email, user.role,
+        `${course.title} — ${mod.title}`,
+        `${score}% (tentativa ${attempts})`);
+    }
   } catch (e) { console.warn('Could not persist to Firebase:', e); }
 
   // Find next module

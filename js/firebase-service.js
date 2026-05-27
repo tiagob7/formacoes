@@ -231,7 +231,7 @@ export async function logAuditEvent(action, actor, actorRole, target, details = 
   if (!isConfigured()) return;
   init();
   try {
-    await addDoc(collection(_db, 'auditoria'), {
+    await addDoc(collection(_db, 'audit_log'), {
       action, actor, actorRole, target, details,
       timestamp: new Date().toISOString(),
     });
@@ -243,7 +243,7 @@ export async function getAuditLog(maxEntries = 200) {
   init();
   try {
     const snap = await getDocs(
-      query(collection(_db, 'auditoria'), orderBy('timestamp', 'desc'), limit(maxEntries))
+      query(collection(_db, 'audit_log'), orderBy('timestamp', 'desc'), limit(maxEntries))
     );
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch { return []; }
@@ -405,29 +405,6 @@ export async function isEmailInWhitelist(email) {
   if (!isConfigured()) return false;
   const snap = await getDoc(doc(_db, 'whitelist', email.trim().toLowerCase()));
   return snap.exists();
-}
-
-/**
- * Verifica se o par (email, nif) existe na whitelist e ainda não foi registado.
- * Retorna { valid: true, data } ou { valid: false, reason }
- * reason: 'not_found' | 'nif_mismatch' | 'already_registered'
- */
-export async function checkWhitelistEntry(email, nif) {
-  init();
-  if (!isConfigured()) return { valid: false, reason: 'not_found' };
-  const normalizedEmail = email.trim().toLowerCase();
-  const snap = await getDoc(doc(_db, 'whitelist', normalizedEmail));
-  if (!snap.exists()) return { valid: false, reason: 'not_found' };
-  const data = snap.data();
-  if ((data.contribuinte || '').trim() !== nif.trim()) return { valid: false, reason: 'nif_mismatch' };
-  if (data.registado) return { valid: false, reason: 'already_registered' };
-  return { valid: true, data };
-}
-
-export async function markWhitelistRegistered(email) {
-  init();
-  if (!isConfigured()) return;
-  await setDoc(doc(_db, 'whitelist', email.trim().toLowerCase()), { registado: true }, { merge: true });
 }
 
 export async function getAllProgress(employees) {

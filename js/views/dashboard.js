@@ -277,7 +277,7 @@ function courseCard(course, p) {
   const assignmentLabel = course.isRequired ? 'Obrigatória' : 'Opcional';
 
   return `
-    <div class="course-cover">${courseCoverSVG(course.id)}<div class="course-category">${course.category}</div></div>
+    <div class="course-cover">${courseCoverSVG(course.id, course.category)}<div class="course-category">${course.category}</div></div>
     <div class="course-body">
       <div class="course-status-row">
         <div class="course-status" style="background:${statusBg};color:${statusColor}">
@@ -298,9 +298,9 @@ function courseCard(course, p) {
         <span class="course-progress-pct">${p.completed}/${p.total} · ${p.pct}%</span>
       </div>
       <div class="course-bar"><div class="course-bar-fill" style="width:${p.pct}%"></div></div>
-      <button class="course-cta">
+      <div class="course-cta">
         ${ctaLabel} ${icon('arrowRight', 13)}
-      </button>
+      </div>
     </div>`;
 }
 
@@ -318,47 +318,78 @@ function deadlineBadge(deadline) {
     </div>`;
 }
 
-function courseCoverSVG(id) {
-  const svgs = {
-    rgpd: `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-      <defs><linearGradient id="gc1" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#1A3A5C"/><stop offset="100%" stop-color="#0E2540"/>
-      </linearGradient></defs>
-      <rect width="200" height="110" fill="url(#gc1)"/>
-      <circle cx="170" cy="20" r="48" fill="#00AEEF" opacity=".18"/>
-      <circle cx="30" cy="95" r="36" fill="#00AEEF" opacity=".12"/>
-      <g transform="translate(72,28)">
-        <path d="M28 4L52 14V32C52 46 40 54 28 58C16 54 4 46 4 32V14Z" fill="white" opacity=".95"/>
-        <path d="M28 4L52 14V32C52 46 40 54 28 58C16 54 4 46 4 32V14Z" stroke="#00AEEF" stroke-width="1.5" fill="none"/>
-        <path d="M18 32L25 39L40 24" stroke="#1A3A5C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </g></svg>`,
-    sst: `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-      <defs><linearGradient id="gc2" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#1A3A5C"/><stop offset="100%" stop-color="#0E2540"/>
-      </linearGradient></defs>
-      <rect width="200" height="110" fill="url(#gc2)"/>
-      <circle cx="160" cy="25" r="45" fill="#00AEEF" opacity=".15"/>
-      <g transform="translate(68,18)">
-        <path d="M32 0L64 14V36C64 56 48 68 32 74C16 68 0 56 0 36V14Z" fill="white" opacity=".12"/>
-        <path d="M32 10L54 21V36C54 51 43 60 32 65C21 60 10 51 10 36V21Z" fill="white" opacity=".9"/>
-        <line x1="32" y1="24" x2="32" y2="44" stroke="#1A3A5C" stroke-width="4" stroke-linecap="round"/>
-        <line x1="22" y1="34" x2="42" y2="34" stroke="#1A3A5C" stroke-width="4" stroke-linecap="round"/>
-      </g></svg>`,
-    comunicacao: `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-      <defs><linearGradient id="gc3" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#1A3A5C"/><stop offset="100%" stop-color="#0E2540"/>
-      </linearGradient></defs>
-      <rect width="200" height="110" fill="url(#gc3)"/>
-      <circle cx="155" cy="30" r="50" fill="#00AEEF" opacity=".15"/>
-      <rect x="50" y="22" width="80" height="52" rx="8" fill="white" opacity=".9"/>
-      <rect x="50" y="22" width="80" height="52" rx="8" fill="none" stroke="#00AEEF" stroke-width="1.5"/>
-      <path d="M70 74L62 84" stroke="white" stroke-width="2" opacity=".5"/>
-      <rect x="62" y="35" width="56" height="5" rx="2.5" fill="#C9D2DE"/>
-      <rect x="62" y="46" width="40" height="4" rx="2" fill="#C9D2DE"/>
-      <rect x="62" y="55" width="48" height="4" rx="2" fill="#C9D2DE"/>
-    </svg>`,
-  };
-  return svgs[id] || svgs['rgpd'];
+function courseCoverSVG(id, category = '') {
+  const cat = (category || '').toLowerCase();
+  const palettes = [
+    ['#1A3A5C','#0E2540'],
+    ['#14304D','#0a1f35'],
+    ['#1F4060','#152C45'],
+    ['#0E3352','#091f33'],
+  ];
+  const idx = (id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % palettes.length;
+  const [c1, c2] = palettes[idx];
+  const gid = `gc-${(id || 'x').replace(/[^a-z0-9]/gi, '')}`;
+
+  const wrap = (shape) => `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
+    </linearGradient></defs>
+    <rect width="200" height="110" fill="url(#${gid})"/>
+    <circle cx="170" cy="15" r="55" fill="#00AEEF" opacity=".13"/>
+    <circle cx="20" cy="95" r="38" fill="#00AEEF" opacity=".09"/>
+    ${shape}
+  </svg>`;
+
+  if (/conformidade|rgpd|privacidade|lei|gdpr|dados/.test(cat))
+    return wrap(`<g transform="translate(72,22)"><path d="M28 4L52 14V32C52 46 40 54 28 58C16 54 4 46 4 32V14Z" fill="white" opacity=".95"/><path d="M18 32L25 39L40 24" stroke="${c1}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`);
+
+  if (/seguran|sa[uú]de|sst|emerg|riscos/.test(cat))
+    return wrap(`<g transform="translate(76,20)"><rect x="0" y="0" width="48" height="68" rx="8" fill="white" opacity=".9"/><line x1="24" y1="14" x2="24" y2="54" stroke="${c1}" stroke-width="5" stroke-linecap="round"/><line x1="8" y1="34" x2="40" y2="34" stroke="${c1}" stroke-width="5" stroke-linecap="round"/></g>`);
+
+  if (/soft|comunica|lideran|pessoas|atendimento|rela/.test(cat))
+    return wrap(`<g transform="translate(52,20)"><rect x="0" y="0" width="80" height="50" rx="10" fill="white" opacity=".9"/><path d="M14 50L8 64" stroke="white" stroke-width="2" opacity=".5"/><rect x="14" y="13" width="52" height="5" rx="2.5" fill="#C9D2DE"/><rect x="14" y="25" width="36" height="4" rx="2" fill="#C9D2DE"/><rect x="14" y="35" width="44" height="4" rx="2" fill="#C9D2DE"/></g>`);
+
+  if (/t[eé]cnic|inform[aá]t|sistema|digital|it|tech/.test(cat))
+    return wrap(`<g transform="translate(60,18)"><rect x="0" y="0" width="80" height="52" rx="6" fill="white" opacity=".9"/><rect x="8" y="8" width="64" height="36" rx="3" fill="${c1}" opacity=".8"/><rect x="28" y="52" width="24" height="5" rx="2" fill="white" opacity=".6"/></g>`);
+
+  if (/financ|contabil|gest[aã]o|or[cç]am|custos/.test(cat))
+    return wrap(`<g transform="translate(74,18)"><circle cx="26" cy="28" r="28" fill="white" opacity=".9"/><text x="26" y="37" text-anchor="middle" font-size="28" font-family="sans-serif" fill="${c1}" font-weight="bold">€</text></g>`);
+
+  // Empregado de mesa / restaurante / serviço / sala
+  if (/mesa|restaurante|sala|servi[cç]o|waiter|f&b|f and b/.test(cat))
+    return wrap(`<g transform="translate(60,16)">
+      <circle cx="40" cy="38" r="32" fill="white" opacity=".9"/>
+      <circle cx="40" cy="38" r="26" fill="none" stroke="#C9D2DE" stroke-width="1.5"/>
+      <ellipse cx="40" cy="30" rx="10" ry="4" fill="${c1}" opacity=".7"/>
+      <rect x="26" y="33" width="28" height="2" rx="1" fill="${c1}" opacity=".5"/>
+      <rect x="38" y="35" width="4" height="14" rx="2" fill="${c1}" opacity=".7"/>
+      <ellipse cx="40" cy="50" rx="14" ry="3" fill="${c1}" opacity=".3"/>
+    </g>`);
+
+  // Housekeeping / limpeza / quartos / lavandaria
+  if (/housekeeping|limpeza|quartos|lavand|andares|camareira/.test(cat))
+    return wrap(`<g transform="translate(58,14)">
+      <rect x="0" y="20" width="60" height="58" rx="6" fill="white" opacity=".9"/>
+      <rect x="8" y="28" width="44" height="6" rx="3" fill="#C9D2DE"/>
+      <rect x="8" y="40" width="36" height="4" rx="2" fill="#C9D2DE"/>
+      <rect x="8" y="50" width="40" height="4" rx="2" fill="#C9D2DE"/>
+      <path d="M20 0 Q30 8 40 0 Q50 8 60 0" stroke="white" stroke-width="2.5" fill="none" opacity=".6" stroke-linecap="round"/>
+      <circle cx="30" cy="16" r="5" fill="white" opacity=".7"/>
+    </g>`);
+
+  // Cozinha / chef / culinária / pastelaria
+  if (/cozinha|chef|culin[aá]|pastelaria|gastronomia|cozinheiro/.test(cat))
+    return wrap(`<g transform="translate(62,12)">
+      <rect x="4" y="28" width="56" height="46" rx="5" fill="white" opacity=".9"/>
+      <rect x="12" y="36" width="40" height="6" rx="3" fill="#C9D2DE"/>
+      <rect x="12" y="48" width="28" height="4" rx="2" fill="#C9D2DE"/>
+      <ellipse cx="32" cy="24" rx="22" ry="10" fill="white" opacity=".9"/>
+      <ellipse cx="32" cy="16" rx="14" ry="7" fill="white" opacity=".7"/>
+      <rect x="30" y="8" width="4" height="8" rx="2" fill="white" opacity=".5"/>
+    </g>`);
+
+  // default — documento/livro
+  return wrap(`<g transform="translate(70,16)"><rect x="4" y="0" width="52" height="70" rx="5" fill="white" opacity=".9"/><rect x="14" y="14" width="32" height="4" rx="2" fill="#C9D2DE"/><rect x="14" y="24" width="24" height="3" rx="1.5" fill="#C9D2DE"/><rect x="14" y="33" width="28" height="3" rx="1.5" fill="#C9D2DE"/><rect x="14" y="42" width="20" height="3" rx="1.5" fill="#C9D2DE"/></g>`);
 }
 
 function documentStack() {

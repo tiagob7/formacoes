@@ -61,11 +61,7 @@ service cloud.firestore {
     }
 
     match /whitelist/{email} {
-      // leitura permitida para auto-registo (não autenticado pode verificar o seu próprio registo)
-      allow read: if request.auth == null || isEmployeeManager();
-      // utilizador autenticado pode marcar o seu próprio registo como concluído
-      allow update: if request.auth != null && request.auth.token.email == email;
-      allow create, delete: if isEmployeeManager();
+      allow read, create, update, delete: if isEmployeeManager();
     }
 
     // CORRIGIDO: removida condição 'system' que nunca era verdadeira (role fica no Firestore, não no token)

@@ -22,7 +22,7 @@ export async function renderContentManager(container) {
         <div class="topbar-sub">Criar e editar formações, módulos e avaliações</div>
       </div>
     </div>
-    <div style="padding:0 2rem 2rem" id="cm-root"></div>`;
+    <div style="padding:2rem 2.5rem 3rem;max-width:1400px;width:100%;margin:0 auto" id="cm-root"></div>`;
 
   await loadAndRenderCourses();
 }
@@ -48,9 +48,14 @@ function renderCourseList(root) {
   root.innerHTML = `
     <div class="admin-toolbar">
       <h2 style="margin:0;font-size:18px">Formações</h2>
-      <button class="btn-sm primary" id="btn-new-course">
-        ${icon('plus',12)} Nova formação
-      </button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm" id="btn-help-cm">
+          ${icon('info',12)} Ajuda
+        </button>
+        <button class="btn-sm primary" id="btn-new-course">
+          ${icon('plus',12)} Nova formação
+        </button>
+      </div>
     </div>
     <div class="courses-manager-grid" id="cm-courses-grid"></div>`;
 
@@ -78,7 +83,7 @@ function renderCourseList(root) {
           </div>
           <div class="cm-course-actions">
             <button class="btn-icon" data-action="edit-course" title="Editar formação" aria-label="Editar formação">${icon('edit',14)}</button>
-            <button class="btn-icon warn" data-action="delete-course" title="Eliminar" aria-label="Eliminar formação">${icon('trash',14)}</button>
+            <button class="btn-icon danger" data-action="delete-course" title="Eliminar" aria-label="Eliminar formação">${icon('trash',14)}</button>
           </div>
         </div>
         <div class="cm-modules-list" id="modules-${course.id}">
@@ -119,6 +124,7 @@ function renderCourseList(root) {
   }
 
   document.getElementById('btn-new-course').addEventListener('click', () => openCourseModal(null));
+  document.getElementById('btn-help-cm').addEventListener('click', () => openHelpModal());
 }
 
 function moduleRow(courseId, mod, idx, total) {
@@ -131,7 +137,7 @@ function moduleRow(courseId, mod, idx, total) {
         <button class="btn-icon" data-action="order-down" data-mid="${mod.id}" title="Mover para baixo" aria-label="Mover módulo para baixo" ${idx === total - 1 ? 'disabled' : ''}>${icon('chevronDown',13)}</button>
         <button class="btn-icon" data-action="upload-pdf" data-mid="${mod.id}" title="PDF" aria-label="Carregar PDF do módulo">${icon('pdf',13,'var(--red)')}</button>
         <button class="btn-icon" data-action="edit-module" data-mid="${mod.id}" title="Editar" aria-label="Editar módulo">${icon('edit',13)}</button>
-        <button class="btn-icon warn" data-action="delete-module" data-mid="${mod.id}" title="Eliminar" aria-label="Eliminar módulo">${icon('trash',13)}</button>
+        <button class="btn-icon danger" data-action="delete-module" data-mid="${mod.id}" title="Eliminar" aria-label="Eliminar módulo">${icon('trash',13)}</button>
       </div>
     </div>`;
 }
@@ -184,26 +190,14 @@ function openCourseModal(course) {
         <label class="form-label" style="margin-top:1rem">Data limite</label>
         <input id="c-due-date" class="form-input" type="date" value="${course?.dueDate || ''}" />
 
-        <label class="form-label" style="margin-top:1rem">Tipo de atribuiÃ§Ã£o</label>
+        <label class="form-label" style="margin-top:1rem">Tipo de atribuição</label>
         <select id="c-required" class="form-input">
           <option value="false" ${course?.isRequired ? '' : 'selected'}>Opcional</option>
-          <option value="true" ${course?.isRequired ? 'selected' : ''}>ObrigatÃ³ria</option>
+          <option value="true" ${course?.isRequired ? 'selected' : ''}>Obrigatória</option>
         </select>
 
-        <div class="form-grid-2">
-          <div>
-            <label class="form-label">Roles alvo</label>
-            <select id="c-target-roles" class="form-input" multiple size="3">
-              ${Object.entries({ colaborador: 'Colaborador', gestor_conteudos: 'Gestor de conteudos', administrador: 'Administrador' }).map(([value, label]) =>
-                `<option value="${value}" ${(course?.targetRoles || []).includes(value) ? 'selected' : ''}>${label}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div>
-            <label class="form-label">Departamentos alvo</label>
-            <input id="c-target-departments" class="form-input" value="${escHtml((course?.targetDepartments || []).join(', '))}" placeholder="ex.: RH, Operacoes" />
-          </div>
-        </div>
+        <label class="form-label" style="margin-top:1rem">Departamentos alvo</label>
+        <input id="c-target-departments" class="form-input" value="${escHtml((course?.targetDepartments || []).join(', '))}" placeholder="ex.: RH, Operações" />
 
         <div id="c-error" class="form-error" style="display:none;margin-top:.5rem"></div>
       </div>
@@ -221,7 +215,6 @@ function openCourseModal(course) {
     const passing  = parseInt(document.getElementById('c-passing').value) || 60;
     const dueDate  = document.getElementById('c-due-date').value || '';
     const isRequired = document.getElementById('c-required').value === 'true';
-    const targetRoles = Array.from(document.getElementById('c-target-roles').selectedOptions).map(opt => opt.value);
     const targetDepartments = parseCsvList(document.getElementById('c-target-departments').value);
     const errEl    = document.getElementById('c-error');
 
@@ -235,12 +228,12 @@ function openCourseModal(course) {
     const auditFields = isEdit
       ? { editadoPor: user?.email || '', editadoEm: now }
       : { criadoPor: user?.email || '', criadoEm: now, editadoPor: user?.email || '', editadoEm: now };
-    const data     = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles, targetDepartments, status, order: isEdit ? (course.order ?? 0) : _courses.length, ...auditFields };
+    const data     = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles: [], targetDepartments, status, order: isEdit ? (course.order ?? 0) : _courses.length, ...auditFields };
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
     try {
-      await saveCourse(courseId, data);
+      await saveCourse(courseId, data, user?.email, user?.role);
       clearCoursesCache();
       showToast(`Formação ${isEdit ? 'atualizada' : 'criada'}.`, 'success');
       overlay.remove();
@@ -260,7 +253,8 @@ async function confirmDeleteCourse(course) {
   });
   if (!ok) return;
   try {
-    await deleteCourseFromDB(course.id);
+    const { user: _u } = getState();
+    await deleteCourseFromDB(course.id, course.title, _u?.email, _u?.role);
     clearCoursesCache();
     showToast('Formação eliminada.', 'success');
     await loadAndRenderCourses();
@@ -362,7 +356,7 @@ function openModuleModal(course, mod) {
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
     try {
-      await saveModule(course.id, moduleId, data);
+      await saveModule(course.id, moduleId, data, u?.email, u?.role);
       clearCoursesCache();
       showToast(`Módulo ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();
@@ -514,17 +508,33 @@ function renderQuizEditor(root) {
   root.innerHTML = `
     <div class="quiz-builder">
       ${_editQuiz.length === 0
-        ? `<p class="qb-empty">Ainda sem perguntas. Adicione a primeira!</p>`
+        ? `<p class="qb-empty">Ainda sem perguntas. Adicione a primeira ou importe um CSV.</p>`
         : _editQuiz.map((q, i) => renderQCard(q, i)).join('')}
-      <button class="btn-sm primary" id="qb-add" style="margin-top:.5rem">
-        ${icon('plus',12)} Adicionar pergunta
-      </button>
+      <div style="display:flex;gap:8px;margin-top:.75rem;flex-wrap:wrap">
+        <button class="btn-sm primary" id="qb-add">
+          ${icon('plus',12)} Adicionar pergunta
+        </button>
+        <button class="btn-sm" id="qb-import-csv">
+          ${icon('upload',12)} Importar CSV
+        </button>
+        <input type="file" id="qb-csv-input" accept=".csv" style="display:none" />
+      </div>
     </div>`;
 
   root.querySelector('#qb-add').addEventListener('click', () => {
     _editQuiz.push({ type: 'mc', question: '', options: ['', '', '', ''], answer: 0, explanation: '' });
     renderQuizEditor(root);
     root.querySelector('.qb-card:last-of-type')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  root.querySelector('#qb-import-csv').addEventListener('click', () => {
+    root.querySelector('#qb-csv-input').click();
+  });
+  root.querySelector('#qb-csv-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    importQuizCSV(file, root);
+    e.target.value = '';
   });
 
   root.querySelectorAll('[data-qact="type"]').forEach(el => {
@@ -666,6 +676,112 @@ function statusLabel(status) {
   return map[status] || 'Rascunho';
 }
 
+/* ------------------------------------------------------------------ */
+/* Importar Quiz via CSV                                                */
+/* ------------------------------------------------------------------ */
+
+function importQuizCSV(file, root) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+    const errors = [];
+    const imported = [];
+
+    // ignora cabeçalho se a primeira linha começar com "tipo"
+    const start = lines[0].toLowerCase().startsWith('tipo') ? 1 : 0;
+
+    lines.slice(start).forEach((raw, idx) => {
+      const row = raw.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g)
+        ?.map(v => v.replace(/^"|"$/g, '').trim()) || raw.split(',').map(v => v.trim());
+
+      const [tipo, pergunta, op1, op2, op3, op4, resposta, explicacao] = row;
+
+      if (!tipo || !pergunta) { errors.push(`Linha ${start + idx + 1}: tipo e pergunta são obrigatórios`); return; }
+
+      const t = tipo.toLowerCase();
+
+      if (t === 'mc') {
+        const options = [op1, op2, op3, op4].filter(Boolean);
+        if (options.length < 2) { errors.push(`Linha ${start + idx + 1}: múltipla escolha precisa de pelo menos 2 opções`); return; }
+        const ans = parseInt(resposta) - 1;
+        if (isNaN(ans) || ans < 0 || ans >= options.length) { errors.push(`Linha ${start + idx + 1}: resposta inválida (use 1-${options.length})`); return; }
+        imported.push({ type: 'mc', question: pergunta, options, answer: ans, explanation: explicacao || '' });
+
+      } else if (t === 'tf') {
+        const r = (resposta || '').toLowerCase();
+        if (!['verdadeiro','falso','true','false','v','f'].includes(r)) { errors.push(`Linha ${start + idx + 1}: resposta deve ser "verdadeiro" ou "falso"`); return; }
+        imported.push({ type: 'tf', question: pergunta, answer: ['verdadeiro','true','v'].includes(r), explanation: explicacao || '' });
+
+      } else {
+        errors.push(`Linha ${start + idx + 1}: tipo inválido "${tipo}" (use "mc" ou "tf")`);
+      }
+    });
+
+    if (errors.length) {
+      showToast(`${errors.length} erro(s) no CSV. Verifique o formato.`, 'error');
+      console.warn('Erros CSV:', errors);
+      return;
+    }
+    if (!imported.length) { showToast('Nenhuma pergunta encontrada no CSV.', 'error'); return; }
+
+    _editQuiz.push(...imported);
+    renderQuizEditor(root);
+    showToast(`${imported.length} pergunta(s) importada(s) com sucesso.`, 'success');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/* ------------------------------------------------------------------ */
+/* Modal de Ajuda                                                       */
+/* ------------------------------------------------------------------ */
+
+function openHelpModal() {
+  const overlay = createOverlay(`
+    <div class="modal modal-wide" style="max-width:680px">
+      <div class="modal-header">
+        <h3>${icon('info',16)} Ajuda — Gestão de Conteúdos</h3>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar">${icon('x',16)}</button>
+      </div>
+      <div class="modal-body" style="font-size:14px;line-height:1.7">
+
+        <h4 style="font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">Formações</h4>
+        <p style="color:var(--ink-2);margin-bottom:.75rem">Cada formação agrupa um ou mais módulos. Para criar uma formação clique em <strong>Nova formação</strong> e preencha o título, subtítulo, categoria e configurações. A formação fica em <em>Rascunho</em> até ser publicada.</p>
+
+        <h4 style="font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;margin-top:1.25rem">Módulos e PDFs</h4>
+        <p style="color:var(--ink-2);margin-bottom:.75rem">Clique em <strong>Adicionar módulo</strong> dentro de uma formação para criar um módulo. No separador <em>PDF</em> pode fazer upload do documento de estudo. O PDF substitui o editor de conteúdo — se fizer upload, o colaborador vê o PDF.</p>
+
+        <h4 style="font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;margin-top:1.25rem">Questionários — formato CSV</h4>
+        <p style="color:var(--ink-2);margin-bottom:.5rem">No separador <em>Questionário</em> do módulo, clique em <strong>Importar CSV</strong> para carregar perguntas em massa. O ficheiro deve ter as seguintes colunas (separadas por vírgula):</p>
+
+        <div style="background:var(--bg);border-radius:8px;padding:.75rem 1rem;font-family:monospace;font-size:12px;color:var(--ink);margin-bottom:.75rem;overflow-x:auto;white-space:nowrap">
+          tipo, pergunta, opcao1, opcao2, opcao3, opcao4, resposta, explicacao
+        </div>
+
+        <p style="color:var(--ink-2);margin-bottom:.5rem"><strong>Tipos de pergunta:</strong></p>
+        <ul style="color:var(--ink-2);padding-left:1.25rem;margin-bottom:.75rem">
+          <li style="margin-bottom:.35rem"><strong>mc</strong> — múltipla escolha. Preencha opcao1 a opcao4 (mínimo 2). <em>resposta</em> = número da opção correta (1, 2, 3 ou 4).</li>
+          <li><strong>tf</strong> — verdadeiro / falso. Deixe as opções vazias. <em>resposta</em> = <code>verdadeiro</code> ou <code>falso</code>.</li>
+        </ul>
+
+        <p style="color:var(--ink-2);margin-bottom:.5rem"><strong>Exemplo de ficheiro CSV:</strong></p>
+        <div style="background:var(--bg);border-radius:8px;padding:.75rem 1rem;font-family:monospace;font-size:11.5px;color:var(--ink);margin-bottom:.75rem;overflow-x:auto">
+          <div style="color:var(--ink-3)">tipo,pergunta,opcao1,opcao2,opcao3,opcao4,resposta,explicacao</div>
+          <div>mc,Qual o equipamento obrigatório em cozinha?,Avental,Luvas,Touca,Todas as anteriores,4,Todo o equipamento é obrigatório por higiene.</div>
+          <div>tf,O cliente deve ser sempre cumprimentado à entrada?,,,,, verdadeiro,O acolhimento é essencial no serviço de sala.</div>
+          <div>mc,Com que frequência trocar a roupa de cama?,Diariamente,À saída do hóspede,Semanalmente,Nunca,2,A roupa muda a cada saída de hóspede.</div>
+        </div>
+
+        <p style="color:var(--ink-3);font-size:12.5px">${icon('info',12,'var(--ink-3)')} A primeira linha do CSV é ignorada se começar com "tipo". O campo <em>explicação</em> é opcional.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="modal-close-btn">Percebido</button>
+      </div>
+    </div>`);
+
+  overlay.querySelector('#modal-close').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#modal-close-btn').addEventListener('click', () => overlay.remove());
+}
+
 async function confirmDeleteModule(course, mod) {
   const ok = await confirmDialog({
     title: 'Eliminar módulo',
@@ -675,7 +791,8 @@ async function confirmDeleteModule(course, mod) {
   });
   if (!ok) return;
   try {
-    await deleteModuleFromDB(course.id, mod.id);
+    const { user: _mu } = getState();
+    await deleteModuleFromDB(course.id, mod.id, mod.title, _mu?.email, _mu?.role);
     clearCoursesCache();
     showToast('Módulo eliminado.', 'success');
     await loadAndRenderCourses();
