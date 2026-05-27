@@ -171,7 +171,7 @@ function showRegisterStep1(rightEl) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nif   = nifEl.value.trim();
-    const email = emailEl.value.trim();
+    const email = emailEl.value.trim().toLowerCase();
 
     if (!nif || !email) {
       errEl.textContent = 'Preencha todos os campos para continuar.';
@@ -227,10 +227,10 @@ function showRegisterStep2(rightEl, email, whitelistData) {
       <div class="register-badge-ok">✓ ${email} — identidade confirmada</div>
 
       <label class="form-label" for="reg-pass">Nova palavra-passe</label>
-      <input id="reg-pass" type="password" class="form-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+      <input id="reg-pass" type="password" class="form-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password" aria-describedby="reg2-error" />
 
       <label class="form-label" for="reg-confirm">Confirmar palavra-passe</label>
-      <input id="reg-confirm" type="password" class="form-input" placeholder="Repita a palavra-passe" autocomplete="new-password" />
+      <input id="reg-confirm" type="password" class="form-input" placeholder="Repita a palavra-passe" autocomplete="new-password" aria-describedby="reg2-error" />
 
       <div id="reg2-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
 
@@ -262,8 +262,8 @@ function showRegisterStep2(rightEl, email, whitelistData) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const password = passEl.value;
-    const confirm  = confirmEl.value;
+    const password = passEl.value.trim();
+    const confirm  = confirmEl.value.trim();
 
     if (password.length < 8) {
       errEl.textContent = 'A palavra-passe deve ter pelo menos 8 caracteres.';
@@ -298,7 +298,7 @@ function showRegisterStep2(rightEl, email, whitelistData) {
     } catch (err) {
       console.warn('[Register] Falha:', err.code || err.message);
       const msg = err.code === 'auth/email-already-in-use'
-        ? 'Este email já tem uma conta. Use o login normal.'
+        ? 'Erro ao concluir o registo. Contacte o administrador se o problema persistir.'
         : 'Erro ao criar conta. Verifique a ligação e tente novamente.';
       errEl.textContent = msg;
       errEl.style.display = 'block';
