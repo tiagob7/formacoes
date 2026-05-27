@@ -1,7 +1,7 @@
 import { initializeApp, deleteApp }                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut,
          createUserWithEmailAndPassword }                        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, query, collection, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, addDoc, query, collection, where, getDocs, orderBy, limit, startAfter, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -188,9 +188,65 @@ export async function getModulePdfUrl(courseId, moduleId) {
 export async function getEmployees() {
   init();
   if (!isConfigured()) return [];
-  const { getDocs: _getDocs, collection: _col } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-  const snap = await _getDocs(_col(_db, 'employees'));
+  const snap = await getDocs(collection(_db, 'employees'));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getEmployeesPaginated(pageSize = 20, cursorDoc = null) {
+  init();
+  if (!isConfigured()) return { docs: [], cursor: null, hasMore: false };
+  const constraints = [
+    collection(_db, 'employees'),
+    where('role', '==', 'colaborador'),
+    orderBy('nome'),
+    limit(pageSize + 1),
+  ];
+  if (cursorDoc) constraints.splice(3, 0, startAfter(cursorDoc));
+  const snap = await getDocs(query(...constraints));
+  const hasMore = snap.docs.length > pageSize;
+  const docs = snap.docs.slice(0, pageSize).map(d => ({ id: d.id, ...d.data() }));
+  return { docs, cursor: snap.docs[pageSize - 1] ?? null, hasMore };
+}
+
+export async function getWhitelistPaginated(pageSize = 20, cursorDoc = null) {
+  init();
+  if (!isConfigured()) return { docs: [], cursor: null, hasMore: false };
+  const constraints = [
+    collection(_db, 'whitelist'),
+    orderBy('nome'),
+    limit(pageSize + 1),
+  ];
+  if (cursorDoc) constraints.splice(2, 0, startAfter(cursorDoc));
+  const snap = await getDocs(query(...constraints));
+  const hasMore = snap.docs.length > pageSize;
+  const docs = snap.docs.slice(0, pageSize).map(d => ({ id: d.id, ...d.data() }));
+  return { docs, cursor: snap.docs[pageSize - 1] ?? null, hasMore };
+}
+
+/* ------------------------------------------------------------------ */
+/* Auditoria                                                            */
+/* ------------------------------------------------------------------ */
+
+export async function logAuditEvent(action, actor, actorRole, target, details = '') {
+  if (!isConfigured()) return;
+  init();
+  try {
+    await addDoc(collection(_db, 'audit_log'), {
+      action, actor, actorRole, target, details,
+      timestamp: new Date().toISOString(),
+    });
+  } catch { /* audit never blocks the main operation */ }
+}
+
+export async function getAuditLog(maxEntries = 200) {
+  if (!isConfigured()) return [];
+  init();
+  try {
+    const snap = await getDocs(
+      query(collection(_db, 'audit_log'), orderBy('timestamp', 'desc'), limit(maxEntries))
+    );
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch { return []; }
 }
 
 export async function createEmployee(email, password, nome, role = 'colaborador', departamento = '', criadoPor = '') {
@@ -228,10 +284,11 @@ export async function updateEmployee(email, data, editadoPor = '') {
   await setDoc(doc(_db, 'employees', email), payload, { merge: true });
 }
 
-export async function deleteEmployee(email) {
+export async function deleteEmployee(email, actor = '', actorRole = '') {
   init();
   const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
   await deleteDoc(doc(_db, 'employees', email));
+  await logAuditEvent('delete_user', actor, actorRole, email, '');
 }
 
 export async function importEmployees(list) {
@@ -261,18 +318,66 @@ export async function getWhitelist() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function importWhitelist(list) {
+export async function importWhitelist(list, { update = false } = {}) {
   init();
-  const results = { created: 0, skipped: 0 };
+  const results = { created: 0, updated: 0, skipped: 0 };
+
+  // 1. Buscar todos os emails existentes numa única query
+  const existingSnap = await getDocs(collection(_db, 'whitelist'));
+  const existingEmails = new Set(existingSnap.docs.map(d => d.id));
+
+  // 2. Separar em novas, a actualizar e inválidas
+  const toCreate = [];
+  const toUpdate = [];
   for (const entry of list) {
     const email = entry.email?.trim().toLowerCase();
     if (!email) { results.skipped++; continue; }
-    const ref  = doc(_db, 'whitelist', email);
-    const snap = await getDoc(ref);
-    if (snap.exists()) { results.skipped++; continue; }
-    await setDoc(ref, { email, nome: entry.nome || entry.name || '', departamento: entry.departamento || entry.dept || '', registado: false, criadoEm: new Date().toISOString() });
-    results.created++;
+    if (existingEmails.has(email)) {
+      if (update) toUpdate.push(entry);
+      else results.skipped++;
+    } else {
+      toCreate.push(entry);
+    }
   }
+
+  const BATCH_SIZE = 500;
+  const now = new Date().toISOString();
+
+  // 3. Criar entradas novas
+  for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+    const batch = writeBatch(_db);
+    for (const entry of toCreate.slice(i, i + BATCH_SIZE)) {
+      const email = entry.email.trim().toLowerCase();
+      batch.set(doc(_db, 'whitelist', email), {
+        email,
+        nome:         entry.nome || entry.name || '',
+        numero:       entry.numero || '',
+        contribuinte: entry.contribuinte || '',
+        departamento: entry.departamento || entry.dept || '',
+        registado:    false,
+        criadoEm:     now,
+      });
+      results.created++;
+    }
+    await batch.commit();
+  }
+
+  // 4. Actualizar entradas existentes (só campos não vazios — preserva registado/criadoEm)
+  for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+    const batch = writeBatch(_db);
+    for (const entry of toUpdate.slice(i, i + BATCH_SIZE)) {
+      const email = entry.email.trim().toLowerCase();
+      const patch = {};
+      if (entry.nome)         patch.nome         = entry.nome;
+      if (entry.numero)       patch.numero       = entry.numero;
+      if (entry.contribuinte) patch.contribuinte = entry.contribuinte;
+      if (entry.departamento) patch.departamento = entry.departamento;
+      if (Object.keys(patch).length) batch.update(doc(_db, 'whitelist', email), patch);
+      results.updated++;
+    }
+    await batch.commit();
+  }
+
   return results;
 }
 
@@ -282,11 +387,46 @@ export async function deleteWhitelistEntry(email) {
   await deleteDoc(doc(_db, 'whitelist', email));
 }
 
+export async function clearWhitelist() {
+  init();
+  const snap = await getDocs(collection(_db, 'whitelist'));
+  if (snap.empty) return 0;
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < snap.docs.length; i += BATCH_SIZE) {
+    const batch = writeBatch(_db);
+    snap.docs.slice(i, i + BATCH_SIZE).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+  return snap.docs.length;
+}
+
 export async function isEmailInWhitelist(email) {
   init();
   if (!isConfigured()) return false;
   const snap = await getDoc(doc(_db, 'whitelist', email.trim().toLowerCase()));
   return snap.exists();
+}
+
+/**
+ * Verifica se o par (email, nif) existe na whitelist e ainda não foi registado.
+ * Retorna { valid: true, data } ou { valid: false, reason }
+ * reason: 'not_found' | 'nif_mismatch' | 'already_registered'
+ */
+export async function checkWhitelistEntry(email, nif) {
+  init();
+  if (!isConfigured()) return { valid: false, reason: 'not_found' };
+  const normalizedEmail = email.trim().toLowerCase();
+  const snap = await getDoc(doc(_db, 'whitelist', normalizedEmail));
+  if (!snap.exists()) return { valid: false, reason: 'not_found' };
+  const data = snap.data();
+  if ((data.contribuinte || '').trim() !== nif.trim()) return { valid: false, reason: 'nif_mismatch' };
+  if (data.registado) return { valid: false, reason: 'already_registered' };
+  return { valid: true, data };
+}
+
+export async function markWhitelistRegistered(email) {
+  init();
+  await setDoc(doc(_db, 'whitelist', email.trim().toLowerCase()), { registado: true }, { merge: true });
 }
 
 export async function getAllProgress(employees) {
@@ -318,26 +458,32 @@ export async function getCoursesFromDB() {
   return courses.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
-export async function saveCourse(courseId, data) {
+export async function saveCourse(courseId, data, actor = '', actorRole = '') {
   init();
   await setDoc(doc(_db, 'courses', courseId), data, { merge: true });
+  const action = data.criadoEm === data.editadoEm ? 'create_course' : 'edit_course';
+  await logAuditEvent(action, actor, actorRole, data.title || courseId, '');
 }
 
-export async function deleteCourseFromDB(courseId) {
+export async function deleteCourseFromDB(courseId, title = '', actor = '', actorRole = '') {
   init();
   const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
   await deleteDoc(doc(_db, 'courses', courseId));
+  await logAuditEvent('delete_course', actor, actorRole, title || courseId, '');
 }
 
-export async function saveModule(courseId, moduleId, data) {
+export async function saveModule(courseId, moduleId, data, actor = '', actorRole = '') {
   init();
   await setDoc(doc(_db, 'courses', courseId, 'modules', moduleId), data, { merge: true });
+  const action = data.criadoEm === data.editadoEm ? 'create_module' : 'edit_module';
+  await logAuditEvent(action, actor, actorRole, data.title || moduleId, `Formação: ${courseId}`);
 }
 
-export async function deleteModuleFromDB(courseId, moduleId) {
+export async function deleteModuleFromDB(courseId, moduleId, title = '', actor = '', actorRole = '') {
   init();
   const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
   await deleteDoc(doc(_db, 'courses', courseId, 'modules', moduleId));
+  await logAuditEvent('delete_module', actor, actorRole, title || moduleId, `Formação: ${courseId}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -379,6 +525,6 @@ export async function deleteDepartment(id) {
 /* ------------------------------------------------------------------ */
 
 export function hasRole(currentRole, requiredRole) {
-  const hierarchy = { colaborador: 0, gestor_conteudos: 1, administrador: 2 };
+  const hierarchy = { colaborador: 0, gestor_conteudos: 1, gestor_colaboradores: 1, administrador: 2 };
   return (hierarchy[currentRole] ?? -1) >= (hierarchy[requiredRole] ?? -1);
 }
