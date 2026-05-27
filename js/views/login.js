@@ -208,3 +208,105 @@ function showRegisterStep1(rightEl) {
 
   nifEl.focus();
 }
+
+function showRegisterStep2(rightEl, email, whitelistData) {
+  rightEl.innerHTML = `
+    <form class="login-card" id="reg2-form" novalidate>
+      <div class="login-card-eyebrow">CRIAR CONTA</div>
+      <h2 class="login-card-title">Definir palavra-passe</h2>
+      <p class="login-card-lead">Identidade confirmada. Escolha uma palavra-passe para aceder à plataforma.</p>
+
+      <div class="register-step-indicator">
+        <div class="step-dot step-dot--done">✓</div>
+        <span class="step-label">Verificação</span>
+        <div class="step-sep"></div>
+        <div class="step-dot step-dot--active">2</div>
+        <span class="step-label step-label--active">Palavra-passe</span>
+      </div>
+
+      <div class="register-badge-ok">✓ ${email} — identidade confirmada</div>
+
+      <label class="form-label" for="reg-pass">Nova palavra-passe</label>
+      <input id="reg-pass" type="password" class="form-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+
+      <label class="form-label" for="reg-confirm">Confirmar palavra-passe</label>
+      <input id="reg-confirm" type="password" class="form-input" placeholder="Repita a palavra-passe" autocomplete="new-password" />
+
+      <div id="reg2-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
+
+      <button type="submit" class="btn-primary" id="reg2-btn">
+        Criar conta e entrar
+        <span id="reg2-arrow">${icon('arrowRight', 16)}</span>
+        <span id="reg2-spinner" class="spinner" style="display:none"></span>
+      </button>
+
+      <button type="button" class="btn-link" id="back-to-step1" style="display:block;text-align:center;margin-top:12px">
+        ← Recomeçar
+      </button>
+    </form>`;
+
+  const form      = document.getElementById('reg2-form');
+  const passEl    = document.getElementById('reg-pass');
+  const confirmEl = document.getElementById('reg-confirm');
+  const errEl     = document.getElementById('reg2-error');
+  const btn       = document.getElementById('reg2-btn');
+  const arrow     = document.getElementById('reg2-arrow');
+  const spinner   = document.getElementById('reg2-spinner');
+
+  document.getElementById('back-to-step1').addEventListener('click', () => {
+    showRegisterStep1(rightEl);
+  });
+
+  passEl.addEventListener('input',    () => { errEl.style.display = 'none'; });
+  confirmEl.addEventListener('input', () => { errEl.style.display = 'none'; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = passEl.value;
+    const confirm  = confirmEl.value;
+
+    if (password.length < 8) {
+      errEl.textContent = 'A palavra-passe deve ter pelo menos 8 caracteres.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (password !== confirm) {
+      errEl.textContent = 'As palavras-passe não coincidem.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    arrow.style.display   = 'none';
+    spinner.style.display = 'block';
+
+    try {
+      await createEmployee(
+        email,
+        password,
+        whitelistData.nome || '',
+        'colaborador',
+        whitelistData.departamento || '',
+        'auto-registo',
+      );
+      await markWhitelistRegistered(email);
+      await logAuditEvent('self_register', email, 'colaborador', email, '');
+
+      const result = await loginEmployee(email, password);
+      setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid }, progress: result.progress });
+      navigate('/dashboard');
+    } catch (err) {
+      console.warn('[Register] Falha:', err.code || err.message);
+      const msg = err.code === 'auth/email-already-in-use'
+        ? 'Este email já tem uma conta. Use o login normal.'
+        : 'Erro ao criar conta. Verifique a ligação e tente novamente.';
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      arrow.style.display   = 'inline-block';
+      spinner.style.display = 'none';
+    }
+  });
+
+  passEl.focus();
+}
