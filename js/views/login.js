@@ -58,6 +58,9 @@ export function renderLogin(container) {
           <p class="login-hint">
             Em caso de dificuldades de acesso, contacte o escritório da sua área.
           </p>
+          <p class="login-register-link">
+            Ainda não tem conta? <button type="button" class="btn-link" id="show-register">Criar conta</button>
+          </p>
         </form>
       </div>
     </div>`;
@@ -108,5 +111,100 @@ export function renderLogin(container) {
 
   emailEl.addEventListener('input',    () => { errEl.style.display = 'none'; });
   passEl.addEventListener('input',     () => { errEl.style.display = 'none'; });
+  document.getElementById('show-register').addEventListener('click', () => {
+    const rightEl = document.querySelector('.login-right');
+    showRegisterStep1(rightEl);
+  });
+
   emailEl.focus();
+}
+
+function showRegisterStep1(rightEl) {
+  rightEl.innerHTML = `
+    <form class="login-card" id="reg1-form" novalidate>
+      <div class="login-card-eyebrow">CRIAR CONTA</div>
+      <h2 class="login-card-title">Bem-vindo(a)</h2>
+      <p class="login-card-lead">Confirme a sua identidade para ativar o acesso à plataforma.</p>
+
+      <div class="register-step-indicator">
+        <div class="step-dot step-dot--active">1</div>
+        <span class="step-label step-label--active">Verificação</span>
+        <div class="step-sep"></div>
+        <div class="step-dot step-dot--pending">2</div>
+        <span class="step-label">Palavra-passe</span>
+      </div>
+
+      <label class="form-label" for="reg-nif">NIF (Número de Contribuinte)</label>
+      <input id="reg-nif" type="text" class="form-input" placeholder="ex.: 123456789" maxlength="9" autocomplete="off" />
+
+      <label class="form-label" for="reg-email">Email</label>
+      <input id="reg-email" type="email" class="form-input" placeholder="ex.: nome@email.pt" autocomplete="email" />
+
+      <div id="reg1-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
+
+      <button type="submit" class="btn-primary" id="reg1-btn">
+        Verificar identidade
+        <span id="reg1-arrow">${icon('arrowRight', 16)}</span>
+        <span id="reg1-spinner" class="spinner" style="display:none"></span>
+      </button>
+
+      <button type="button" class="btn-link" id="back-to-login" style="display:block;text-align:center;margin-top:12px">
+        ← Já tenho conta
+      </button>
+    </form>`;
+
+  const form     = document.getElementById('reg1-form');
+  const nifEl    = document.getElementById('reg-nif');
+  const emailEl  = document.getElementById('reg-email');
+  const errEl    = document.getElementById('reg1-error');
+  const btn      = document.getElementById('reg1-btn');
+  const arrow    = document.getElementById('reg1-arrow');
+  const spinner  = document.getElementById('reg1-spinner');
+
+  document.getElementById('back-to-login').addEventListener('click', () => {
+    renderLogin(rightEl.closest('.login-page').parentElement);
+  });
+
+  nifEl.addEventListener('input', () => { errEl.style.display = 'none'; });
+  emailEl.addEventListener('input', () => { errEl.style.display = 'none'; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nif   = nifEl.value.trim();
+    const email = emailEl.value.trim();
+
+    if (!nif || !email) {
+      errEl.textContent = 'Preencha todos os campos para continuar.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    arrow.style.display   = 'none';
+    spinner.style.display = 'block';
+
+    try {
+      const result = await checkWhitelistEntry(email, nif);
+      if (!result.valid) {
+        const msg = result.reason === 'already_registered'
+          ? 'Esta conta já foi ativada. Utilize o login normal ou contacte o administrador.'
+          : 'Os dados introduzidos não correspondem a nenhum registo autorizado.';
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        arrow.style.display   = 'inline-block';
+        spinner.style.display = 'none';
+        return;
+      }
+      showRegisterStep2(rightEl, email, result.data);
+    } catch {
+      errEl.textContent = 'Erro ao verificar identidade. Tente novamente.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      arrow.style.display   = 'inline-block';
+      spinner.style.display = 'none';
+    }
+  });
+
+  nifEl.focus();
 }
