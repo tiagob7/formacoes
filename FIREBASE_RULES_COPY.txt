@@ -1,0 +1,195 @@
+==============================================================================
+FIRESTORE RULES - COPIA E COLA NO FIREBASE CONSOLE
+==============================================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/employees/$(userEmail())).data.role;
+    }
+
+    function isAdmin() {
+      return signedIn() && userRole() == 'administrador';
+    }
+
+    function isContentManager() {
+      return signedIn() && userRole() in ['gestor_conteudos', 'administrador'];
+    }
+
+    function isEmployeeManager() {
+      return signedIn() && userRole() in ['gestor_colaboradores', 'administrador'];
+    }
+
+    function isAnyManager() {
+      return signedIn() && userRole() in ['gestor_conteudos', 'gestor_colaboradores', 'administrador'];
+    }
+
+    // CORRIGIDO: gestor_colaboradores pode ler e gerir todos os utilizadores
+    match /employees/{email} {
+      allow read: if signedIn() && (userEmail() == email || isAnyManager());
+      allow create, update, delete: if isEmployeeManager();
+
+      match /progress/{document=**} {
+        allow read, write: if signedIn() && userEmail() == email;
+        allow read: if isAdmin();
+      }
+    }
+
+    match /courses/{courseId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
+
+      match /modules/{moduleId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isContentManager();
+      }
+    }
+
+    match /modules/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
+    }
+
+    match /whitelist/{email} {
+      // leitura permitida para auto-registo (não autenticado pode verificar o seu próprio registo)
+      allow read: if request.auth == null || isEmployeeManager();
+      // utilizador autenticado pode marcar o seu próprio registo como concluído
+      allow update: if request.auth != null && request.auth.token.email == email;
+      allow create, delete: if isEmployeeManager();
+    }
+
+    // CORRIGIDO: removida condição 'system' que nunca era verdadeira (role fica no Firestore, não no token)
+    match /auditoria/{logId} {
+      allow read: if isAnyManager();
+      allow create: if isAnyManager();
+      allow update, delete: if isAdmin();
+    }
+
+    // CORRIGIDO: regras de certificados unificadas num único match (sem overlap)
+    match /certificados/{email}/{certId} {
+      allow read: if signedIn() && (userEmail() == email || isAnyManager());
+      allow create, update: if isContentManager();
+      allow delete: if isAdmin();
+    }
+  }
+}
+
+==============================================================================
+STORAGE RULES - COPIA E COLA NO FIREBASE CONSOLE
+==============================================================================
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
+    function userRole() {
+      return firestore.get(/databases/(default)/documents/employees/$(userEmail())).data.role;
+    }
+
+    function isContentManager() {
+      return signedIn() && userRole() in ['gestor_conteudos', 'administrador'];
+    }
+
+    match /pdfs/{courseId}/{moduleId} {
+      allow read: if signedIn();
+      allow write: if isContentManager()
+        && request.resource.size < 50 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    match /certificados/{email}/{certId} {
+      allow read: if signedIn() && request.auth.token.email == email;
+      allow write: if isContentManager()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+  }
+}
+
+==============================================================================
+ROLES UTILIZADOR
+==============================================================================
+
+1. colaborador
+   - Email genérico (@empresa.pt ou similar)
+   - Acesso: Formações, Certificados pessoais, Progresso pessoal
+
+2. gestor_conteudos
+   - Email específico (ex: gestor.conteudo@empresa.pt)
+   - Acesso: Tudo de colaborador + Gestão de formações/módulos + Upload PDFs + Auditoria + Emissão certificados
+
+3. gestor_colaboradores
+   - Email específico (ex: gestor.rh@empresa.pt)
+   - Acesso: Tudo de colaborador + Gestão whitelist + Gestão utilizadores + Auditoria
+
+4. administrador
+   - Email específico (ex: admin@empresa.pt)
+   - Acesso: Tudo
+
+==============================================================================
+COMO ATUALIZAR NO FIREBASE CONSOLE
+==============================================================================
+
+PASSO 1: Firestore Database > Rules
+  1. Clicar "Edit rules"
+  2. Selecionar todo o conteúdo (Ctrl+A)
+  3. Colar o bloco "FIRESTORE RULES" acima
+  4. Clicar "Publish"
+  5. Aguardar confirmação (verde)
+
+PASSO 2: Storage > Rules
+  1. Clicar "Edit rules"
+  2. Selecionar todo o conteúdo (Ctrl+A)
+  3. Colar o bloco "STORAGE RULES" acima
+  4. Clicar "Publish"
+  5. Aguardar confirmação (verde)
+
+PASSO 3: Criar/Atualizar utilizadores
+  - Authentication > Users
+  - Para cada novo utilizador, criar documento em Firestore:
+    - Colecção: employees
+    - ID: email do utilizador
+    - Campos: email, nome, role, departamento, ativo, criadoEm
+
+==============================================================================
+TESTE RÁPIDO
+==============================================================================
+
+Firebase Console > Firestore > Rules > "Rules Playground"
+
+Teste 1: Colaborador lê formações
+  - Auth: { "email": "user@empresa.pt" }
+  - Path: /courses/rgpd
+  - Operation: get
+  - Esperado: ✅ PASS
+
+Teste 2: Colaborador edita formações
+  - Auth: { "email": "user@empresa.pt" }
+  - Path: /courses/rgpd
+  - Operation: update
+  - Esperado: ❌ FAIL
+
+Teste 3: Gestor conteúdos edita formações
+  - Auth: { "email": "gestor@empresa.pt", "role": "gestor_conteudos" }
+  - Path: /courses/rgpd
+  - Operation: update
+  - Esperado: ✅ PASS
+
+==============================================================================

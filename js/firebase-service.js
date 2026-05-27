@@ -231,7 +231,7 @@ export async function logAuditEvent(action, actor, actorRole, target, details = 
   if (!isConfigured()) return;
   init();
   try {
-    await addDoc(collection(_db, 'audit_log'), {
+    await addDoc(collection(_db, 'auditoria'), {
       action, actor, actorRole, target, details,
       timestamp: new Date().toISOString(),
     });
@@ -243,7 +243,7 @@ export async function getAuditLog(maxEntries = 200) {
   init();
   try {
     const snap = await getDocs(
-      query(collection(_db, 'audit_log'), orderBy('timestamp', 'desc'), limit(maxEntries))
+      query(collection(_db, 'auditoria'), orderBy('timestamp', 'desc'), limit(maxEntries))
     );
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch { return []; }
@@ -426,6 +426,7 @@ export async function checkWhitelistEntry(email, nif) {
 
 export async function markWhitelistRegistered(email) {
   init();
+  if (!isConfigured()) return;
   await setDoc(doc(_db, 'whitelist', email.trim().toLowerCase()), { registado: true }, { merge: true });
 }
 

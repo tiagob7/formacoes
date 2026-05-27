@@ -262,8 +262,8 @@ function showRegisterStep2(rightEl, email, whitelistData) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const password = passEl.value.trim();
-    const confirm  = confirmEl.value.trim();
+    const password = passEl.value;
+    const confirm  = confirmEl.value;
 
     if (password.length < 8) {
       errEl.textContent = 'A palavra-passe deve ter pelo menos 8 caracteres.';
@@ -289,11 +289,14 @@ function showRegisterStep2(rightEl, email, whitelistData) {
         whitelistData.departamento || '',
         'auto-registo',
       );
-      await markWhitelistRegistered(email);
-      await logAuditEvent('self_register', email, 'colaborador', email, '');
 
       const result = await loginEmployee(email, password);
       setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid }, progress: result.progress });
+
+      // Executar após login (utilizador já autenticado — necessário para as regras Firestore)
+      await markWhitelistRegistered(email);
+      await logAuditEvent('self_register', email, 'colaborador', email, '');
+
       navigate('/dashboard');
     } catch (err) {
       console.warn('[Register] Falha:', err.code || err.message);
