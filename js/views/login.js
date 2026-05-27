@@ -1,5 +1,5 @@
 import { icon }             from '../icons.js';
-import { loginEmployee }    from '../firebase-service.js';
+import { loginEmployee, checkWhitelistEntry, markWhitelistRegistered, createEmployee, logAuditEvent } from '../firebase-service.js';
 import { setState }         from '../state.js';
 import { navigate }         from '../router.js';
 
@@ -8,7 +8,7 @@ export function renderLogin(container) {
     <div class="login-page">
       <div class="login-left">
         <div class="login-brand">
-          <img src="assets/logo-white.png" alt="AlgarTempo" class="login-brand-logo" />
+          <img src="assets/logo-white.png" alt="Algartempo" class="login-brand-logo" />
           <div class="login-brand-div"></div>
           <div>
             <div class="login-brand-name">Formações</div>
@@ -27,7 +27,7 @@ export function renderLogin(container) {
 
         <div class="login-footer">
           <img src="assets/icon.png" alt="" />
-          © 2026 ALGARTEMPO · Departamento de Recursos Humanos · v1.0
+          © 2026 Algartempo · Departamento de Recursos Humanos · v1.0
         </div>
       </div>
 
@@ -56,8 +56,7 @@ export function renderLogin(container) {
           </button>
 
           <p class="login-hint">
-            Em caso de dificuldades de acesso, contacte o
-            <strong>Helpdesk RH (ext. 4040)</strong>.
+            Em caso de dificuldades de acesso, contacte o escritório da sua área.
           </p>
         </form>
       </div>
