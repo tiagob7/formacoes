@@ -1,0 +1,23 @@
+{
+  "name": "formacoes-algartempo-export",
+  "version": "1.0.0",
+  "description": "Ferramenta para exportar dados de formações para documentos Word",
+  "type": "module",
+  "main": "export-to-word.js",
+  "scripts": {
+    "export": "node export-to-word.js",
+    "export:word": "node export-to-word.js"
+  },
+  "keywords": [
+    "export",
+    "word",
+    "docx",
+    "formações",
+    "algartempo"
+  ],
+  "author": "Tiago Bandeira",
+  "license": "MIT",
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
+    // Null-safe: se o doc não existir, devolve 'none' em vez de rebentar
+    function userRole() {
+      return exists(/databases/$(database)/documents/employees/$(userEmail()))
+        ? get(/databases/$(database)/documents/employees/$(userEmail())).data.role
+        : 'none';
+    }
+
+    function isAdmin() {
+      return signedIn() && userRole() == 'administrador';
+    }
+
+    function isContentManager() {
+      return signedIn() && userRole() in ['gestor_conteudos', 'administrador'];
+    }
+
+    function isEmployeeManager() {
+      return signedIn() && userRole() in ['gestor_colaboradores', 'administrador'];
+    }
+
+    function isAnyManager() {
+      return signedIn() && userRole() in ['gestor_conteudos', 'gestor_colaboradores', 'administrador'];
+    }
+
+    match /employees/{email} {
+      allow read: if signedIn() && (userEmail() == email || isAnyManager());
+
+      // isEmployeeManager() → admin cria outros utilizadores
+      // userEmail() == email → auto-registo: utilizador autenticado cria o seu próprio doc
+      allow create: if isEmployeeManager() || (signedIn() && userEmail() == email);
+      allow update, delete: if isEmployeeManager();
+
+      match /progress/{document=**} {
+        allow read, write: if signedIn() && userEmail() == email;
+        allow read: if isAdmin();
+      }
+    }
+
+    match /courses/{courseId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
+
+      match /modules/{moduleId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isContentManager();
+      }
+    }
+
+    match /modules/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
+    }
+
+    match /whitelist/{email} {
+      allow read: if request.auth == null || isEmployeeManager();
+      allow update: if request.auth != null && request.auth.token.email == email;
+      allow create, delete: if isEmployeeManager();
+    }
+
+    match /auditoria/{logId} {
+      allow read: if isAnyManager();
+      allow create: if isAnyManager();
+      allow update, delete: if isAdmin();
+    }
+
+    match /certificados/{email}/{certId} {
+      allow read: if signedIn() && (userEmail() == email || isAnyManager());
+      allow create, update: if isContentManager();
+      allow delete: if isAdmin();
+    }
+  }
+}
