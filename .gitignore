@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+server.log
+
+# Environment variables
+.env
+.env.local
+functions/.env
+
+# Export and seed files
+export*
+seed*
+
+# Superpowers directory
+.superpowers/
