@@ -111,7 +111,7 @@
     import { initializeApp }                                      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getFirestore, setDoc, doc }                         from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { firebaseConfig }                                    from './js/firebase-config.js';
+    import { firebaseConfig }                                    from '../js/firebase-config.js';
     import { COURSES }                                           from './seed-data.js';
 
     const app  = initializeApp(firebaseConfig, 'seed-' + Date.now());

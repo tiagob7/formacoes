@@ -288,7 +288,7 @@ async function exportToWord() {
 
     const buffer = await Packer.toBuffer(doc);
     const fileName = 'formacoes-export.docx';
-    const filePath = path.join(__dirname, fileName);
+    const filePath = path.join(__dirname, '..', fileName);
 
     fs.writeFileSync(filePath, buffer);
 
