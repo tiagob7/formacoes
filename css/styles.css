@@ -101,8 +101,8 @@ select:focus-visible,
   50% { transform: translateY(-8px); }
 }
 @keyframes shimmer {
-  from { left: -100%; }
-  to   { left: 160%; }
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(160%); }
 }
 
 /* Respect prefers-reduced-motion */
