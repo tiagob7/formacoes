@@ -1,19 +1,46 @@
 import { icon }                                      from '../icons.js';
-import { getCourse, getModule, courseProgress }       from '../data.js';
+import { getCourseById, getModuleById, courseProgress, isCourseVisibleToUser } from '../course-service.js';
 import { getState, updateModuleProgress }             from '../state.js';
 import { navigate }                                   from '../router.js';
-import { saveModuleProgress }                         from '../firebase-service.js';
+import { saveModuleProgress, logAuditEvent }           from '../firebase-service.js';
+import { renderLoadingState, renderEmptyState, renderInlineNotice } from '../ui.js';
+import { openCertificate }                            from '../certificate-service.js';
 
 export async function renderResults(container, { courseId, moduleId }) {
+  container.innerHTML = renderLoadingState('A calcular resultados...');
+
   const { user, progress, quizAnswers, quizSubmitted } = getState();
 
   if (!quizSubmitted) { navigate(`/module/${courseId}/${moduleId}`); return; }
 
-  const course    = getCourse(courseId);
-  const mod       = getModule(courseId, moduleId);
-  if (!course || !mod) { navigate('/dashboard'); return; }
+  let course = null;
+  let mod = null;
+  try {
+    course = await getCourseById(courseId);
+    mod = await getModuleById(courseId, moduleId);
+  } catch (err) {
+    console.error(err);
+  }
+  if (!course || !mod || !isCourseVisibleToUser(course, user)) {
+    container.innerHTML = renderEmptyState({
+      iconName: 'info',
+      title: 'Resultados indisponíveis',
+      message: 'A formação ou o módulo associado pode ter sido removido.',
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao painel</button>`,
+    });
+    return;
+  }
 
   const questions = mod.quiz;
+  if (!questions.length) {
+    container.innerHTML = renderEmptyState({
+      iconName: 'info',
+      title: 'Avaliação sem perguntas',
+      message: 'Não existem respostas para corrigir neste módulo.',
+      action: `<button class="btn-next" onclick="navigate('/module/${courseId}/${moduleId}')">Voltar ao módulo</button>`,
+    });
+    return;
+  }
   const answers   = quizAnswers;
 
   // Score calculation
@@ -25,17 +52,39 @@ export async function renderResults(container, { courseId, moduleId }) {
   const passed = score >= course.passingScore;
 
   // Persist progress
-  const existing = progress?.[courseId]?.[moduleId] || {};
-  const attempts = (existing.attempts || 0) + 1;
-  const modData  = {
-    read:       true,
-    quizPassed: passed || !!existing.quizPassed,
-    lastScore:  score,
+  const existing        = progress?.[courseId]?.[moduleId] || {};
+  const previousHistory = Array.isArray(existing.attemptHistory) ? existing.attemptHistory : [];
+  const submittedAt     = Date.now();
+  const attempts        = Math.max(existing.attempts || 0, previousHistory.length) + 1;
+  const bestScore       = Math.max(score, existing.bestScore || 0);
+  const completedAt     = (passed && !existing.quizPassed) ? submittedAt : (existing.completedAt || null);
+  const attemptEntry    = {
+    attempt: attempts,
+    score,
+    correct,
+    total: questions.length,
+    passed,
+    submittedAt,
+  };
+  const attemptHistory = [...previousHistory, attemptEntry];
+  const modData     = {
+    read:        true,
+    quizPassed:  passed || !!existing.quizPassed,
+    lastScore:   score,
+    bestScore,
     attempts,
+    lastAttemptAt: submittedAt,
+    attemptHistory,
+    completedAt,
   };
   updateModuleProgress(courseId, moduleId, modData);
   try {
     await saveModuleProgress(user.email, courseId, moduleId, modData);
+    if (passed) {
+      await logAuditEvent('complete_quiz', user.email, user.role,
+        `${course.title} — ${mod.title}`,
+        `${score}% (tentativa ${attempts})`);
+    }
   } catch (e) { console.warn('Could not persist to Firebase:', e); }
 
   // Find next module
@@ -48,15 +97,20 @@ export async function renderResults(container, { courseId, moduleId }) {
     <div class="topbar">
       <div>
         <div class="breadcrumbs">
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Dashboard</span>
+          <button class="breadcrumb-back" onclick="navigate('/dashboard')">Painel</button>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="history.go(-2)">${course.title}</span>
+          <button class="breadcrumb-back" onclick="history.go(-2)">${course.title}</button>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
           <span class="breadcrumb-current">Resultados</span>
         </div>
         <h1 class="topbar-title">Resultados da Avaliação</h1>
       </div>
     </div>
+    ${!user?.email ? renderInlineNotice({
+      type: 'warning',
+      title: 'Sessão sem email',
+      message: 'O resultado foi calculado neste dispositivo, mas pode não ficar associado ao colaborador.',
+    }) : ''}
 
     <div class="results-layout">
       <!-- Score card -->
@@ -80,16 +134,29 @@ export async function renderResults(container, { courseId, moduleId }) {
       <div class="results-stats">
         <div class="result-stat">
           <div class="result-stat-n" style="color:var(--green)">${correct}</div>
-          <div class="result-stat-l">Respostas correctas</div>
+          <div class="result-stat-l">Respostas corretas</div>
         </div>
         <div class="result-stat">
           <div class="result-stat-n" style="color:var(--red)">${questions.length - correct}</div>
-          <div class="result-stat-l">Respostas incorrectas</div>
+          <div class="result-stat-l">Respostas incorretas</div>
         </div>
         <div class="result-stat">
           <div class="result-stat-n">${questions.length}</div>
           <div class="result-stat-l">Total de perguntas</div>
         </div>
+        <div class="result-stat">
+          <div class="result-stat-n" style="color:var(--cyan-2)">${bestScore}<span style="font-size:14px">%</span></div>
+          <div class="result-stat-l">Melhor nota</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-n">${attempts}</div>
+          <div class="result-stat-l">${attempts === 1 ? 'Tentativa' : 'Tentativas'}</div>
+        </div>
+      </div>
+
+      <h3 class="results-review-title">${icon('clock', 16, 'var(--navy)')} Historico de tentativas</h3>
+      <div class="attempt-history">
+        ${attemptHistory.slice().reverse().map(attempt => renderAttemptHistoryItem(attempt, attempts)).join('')}
       </div>
 
       <!-- Per-question review -->
@@ -110,14 +177,62 @@ export async function renderResults(container, { courseId, moduleId }) {
                Próximo módulo: ${nextMod.title} ${icon('arrowRight', 14)}
              </button>`
           : courseComplete
-            ? `<button class="btn-next" onclick="navigate('/dashboard')">
-                 ${icon('award', 14)} Formação concluída! Voltar ao painel
+            ? `<button class="btn-outline" onclick="navigate('/dashboard')">
+                 ${icon('home', 14)} Voltar ao painel
+               </button>
+               <button class="btn-next" id="btn-certificate">
+                 ${icon('award', 14)} Ver certificado
                </button>`
             : `<button class="btn-next" onclick="navigate('/dashboard')">
                  ${icon('home', 14)} Voltar ao painel
                </button>`}
       </div>
     </div>`;
+
+  if (courseComplete && passed) {
+    document.getElementById('btn-certificate')?.addEventListener('click', () => {
+      const { progress: updatedProgress } = getState();
+      const cp    = updatedProgress?.[courseId] || {};
+      const dates = course.modules.map(m => cp[m.id]?.completedAt).filter(Boolean);
+      openCertificate({
+        userName:    user?.name || user?.email || 'Colaborador',
+        courseName:  course.title,
+        category:    course.category,
+        completedAt: dates.length ? Math.max(...dates) : Date.now(),
+      });
+    });
+  }
+}
+
+function renderAttemptHistoryItem(attempt, currentAttempt) {
+  const isCurrent = attempt.attempt === currentAttempt;
+  const submittedAt = attempt.submittedAt ? formatAttemptDate(attempt.submittedAt) : 'Data indisponivel';
+  const correct = Number.isFinite(attempt.correct) ? attempt.correct : '-';
+  const total = Number.isFinite(attempt.total) ? attempt.total : '-';
+  const score = Number.isFinite(attempt.score) ? `${attempt.score}%` : '-';
+
+  return `
+    <div class="attempt-item ${attempt.passed ? 'pass' : 'fail'} ${isCurrent ? 'current' : ''}">
+      <div class="attempt-main">
+        <div class="attempt-title">Tentativa ${attempt.attempt || '-'}${isCurrent ? ' atual' : ''}</div>
+        <div class="attempt-meta">${submittedAt} &middot; ${correct}/${total} respostas corretas</div>
+      </div>
+      <div class="attempt-score">
+        <strong>${score}</strong>
+        <span>${attempt.passed ? 'Apto' : 'Nao apto'}</span>
+      </div>
+    </div>`;
+}
+
+function formatAttemptDate(value) {
+  try {
+    return new Intl.DateTimeFormat('pt-PT', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  } catch {
+    return 'Data indisponivel';
+  }
 }
 
 function questionReview(q, i, answer) {
@@ -146,8 +261,8 @@ function questionReview(q, i, answer) {
       </div>
       <div class="result-q-answer">
         ${isCorrect
-          ? `Resposta correcta: <strong>${correctText}</strong>`
-          : `A sua resposta: <strong>${answerText}</strong> · Correcto: <strong>${correctText}</strong>`}
+          ? `Resposta correta: <strong>${correctText}</strong>`
+          : `A sua resposta: <strong>${answerText}</strong> · Correto: <strong>${correctText}</strong>`}
       </div>
       ${!isCorrect && q.explanation
         ? `<div class="result-q-explanation">${icon('info', 12, 'var(--amber)')} ${q.explanation}</div>`

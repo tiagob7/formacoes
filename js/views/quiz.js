@@ -1,20 +1,61 @@
 import { icon }                             from '../icons.js';
-import { getCourse, getModule }             from '../data.js';
+import { getCourseById, getModuleById, isCourseVisibleToUser }      from '../course-service.js';
 import { getState, setState }               from '../state.js';
 import { navigate }                         from '../router.js';
+import { renderLoadingState, renderEmptyState } from '../ui.js';
 
-export function renderQuiz(container, { courseId, moduleId }) {
+export async function renderQuiz(container, { courseId, moduleId }) {
+  container.innerHTML = renderLoadingState('A preparar avaliação...');
+
   setState({ courseId, moduleId, view: 'quiz', quizAnswers: {}, quizSubmitted: false });
 
-  const course = getCourse(courseId);
-  const mod    = getModule(courseId, moduleId);
-  if (!course || !mod) { navigate('/dashboard'); return; }
+  let course = null;
+  let mod = null;
+  try {
+    course = await getCourseById(courseId);
+    mod = await getModuleById(courseId, moduleId);
+  } catch (err) {
+    console.error(err);
+  }
+  if (!course || !mod || !isCourseVisibleToUser(course, getState().user)) {
+    container.innerHTML = renderEmptyState({
+      iconName: 'info',
+      title: 'Avaliação não encontrada',
+      message: 'A formação ou o módulo associado pode ter sido removido.',
+      action: `<button class="btn-next" onclick="navigate('/dashboard')">Voltar ao painel</button>`,
+    });
+    return;
+  }
 
   const { progress } = getState();
   const isRead = !!(progress?.[courseId]?.[moduleId]?.read || progress?.[courseId]?.[moduleId]?.quizPassed);
   if (!isRead) { navigate(`/module/${courseId}/${moduleId}`); return; }
 
   const questions = mod.quiz;
+  if (!questions.length) {
+    container.innerHTML = `
+      <div class="topbar">
+        <div>
+          <div class="breadcrumbs">
+            <button class="breadcrumb-back" onclick="history.back()">← Módulo</button>
+            <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
+            <span class="breadcrumb-current">Avaliação</span>
+          </div>
+          <h1 class="topbar-title">Avaliação indisponível</h1>
+          <div class="topbar-sub">${mod.title}</div>
+        </div>
+      </div>
+      <div class="empty-state">
+        <div class="empty-state-inner">
+          <div class="empty-state-icon">${icon('info', 32, 'var(--ink-3)')}</div>
+          <div class="empty-state-title">Este módulo ainda não tem avaliação</div>
+          <div class="empty-state-sub">Quando o gestor publicar perguntas, a avaliação ficará disponível.</div>
+          <button class="btn-next" onclick="navigate('/module/${courseId}/${moduleId}')">Voltar ao módulo</button>
+        </div>
+      </div>`;
+    return;
+  }
+
   let answers     = {};    // { idx: value }
   let submitted   = false;
 
@@ -24,7 +65,7 @@ export function renderQuiz(container, { courseId, moduleId }) {
       <div class="topbar">
         <div>
           <div class="breadcrumbs">
-            <span style="cursor:pointer;color:var(--ink-3)" onclick="history.back()">← Módulo</span>
+            <button class="breadcrumb-back" onclick="history.back()">← Módulo</button>
             <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
             <span class="breadcrumb-current">Avaliação</span>
           </div>
