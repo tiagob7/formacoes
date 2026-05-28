@@ -229,6 +229,7 @@ select:focus-visible,
   background: var(--red-soft); color: var(--red);
   border-radius: 6px; font-size: 13px;
 }
+.form-error:empty { display: none; }
 
 .btn-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
