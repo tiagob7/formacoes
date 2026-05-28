@@ -1,0 +1,204 @@
+╔════════════════════════════════════════════════════════════════════════════════════╗
+║                    MATRIZ DE CONTROLO DE ACESSO - FORMAÇÕES                        ║
+║                          Versão Auditada - 2026-05-26                              ║
+╚════════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ TIPOS DE UTILIZADOR                                                                 │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  1. COLABORADOR                                                                      │
+│     └─ Acesso: Formações, Certificados pessoais, Progresso pessoal                  │
+│     └─ Role DB: "colaborador"                                                       │
+│     └─ Exemplos: employee@empresa.pt                                                │
+│                                                                                      │
+│  2. GESTOR DE CONTEÚDOS                                                             │
+│     └─ Acesso: Tudo (colaborador) + Criar/editar formações + Upload PDFs            │
+│     └─            + Auditoria + Emissão certificados                                │
+│     └─ Role DB: "gestor_conteudos"                                                  │
+│     └─ Exemplos: gestor.formacoes@empresa.pt, trainer@empresa.pt                    │
+│                                                                                      │
+│  3. GESTOR DE COLABORADORES (NOVO)                                                  │
+│     └─ Acesso: Tudo (colaborador) + Gestão whitelist + Gestão utilizadores          │
+│     └─            + Auditoria                                                       │
+│     └─ Role DB: "gestor_colaboradores"                                              │
+│     └─ Exemplos: gestor.rh@empresa.pt, hr@empresa.pt                                │
+│                                                                                      │
+│  4. ADMINISTRADOR                                                                    │
+│     └─ Acesso: Tudo (acesso irrestrito)                                             │
+│     └─ Role DB: "administrador"                                                     │
+│     └─ Exemplos: admin@empresa.pt                                                   │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ MATRIZ DE PERMISSÕES DETALHADA                                                      │
+├───────────────────────────────┬──────────────┬──────────────┬──────────────┬────────┤
+│ RECURSO / OPERAÇÃO            │ COLABORADOR  │ GES. CONT.   │ GES. COLAB.  │ ADMIN  │
+├───────────────────────────────┼──────────────┼──────────────┼──────────────┼────────┤
+│                                                                                      │
+│ FORMAÇÕES (/courses)                                                                 │
+│  ├─ Listar                    │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Ler detalhes              │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Criar nova                │     ❌       │     ✅       │     ❌       │   ✅   │
+│  ├─ Editar                    │     ❌       │     ✅       │     ❌       │   ✅   │
+│  └─ Deletar                   │     ❌       │     ✅       │     ❌       │   ✅   │
+│                                                                                      │
+│ MÓDULOS (/courses/.../modules)                                                      │
+│  ├─ Listar                    │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Ler conteúdo              │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Criar novo                │     ❌       │     ✅       │     ❌       │   ✅   │
+│  ├─ Editar                    │     ❌       │     ✅       │     ❌       │   ✅   │
+│  └─ Deletar                   │     ❌       │     ✅       │     ❌       │   ✅   │
+│                                                                                      │
+│ PDFs (/storage/pdfs/...)                                                             │
+│  ├─ Download/Acesso           │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Upload novo               │     ❌       │     ✅       │     ❌       │   ✅   │
+│  ├─ Substituir                │     ❌       │     ✅       │     ❌       │   ✅   │
+│  └─ Deletar                   │     ❌       │     ✅       │     ❌       │   ✅   │
+│                                                                                      │
+│ PROGRESSO PESSOAL (/employees/{email}/progress)                                     │
+│  ├─ Ver progresso próprio     │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Editar progresso próprio  │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Ver progresso de outros   │     ❌       │     ❌       │     ❌       │   ✅   │
+│  └─ Editar progresso de outros│     ❌       │     ❌       │     ❌       │   ✅   │
+│                                                                                      │
+│ UTILIZADORES (/employees)                                                           │
+│  ├─ Listar todos              │     ❌       │     ❌       │     ✅       │   ✅   │
+│  ├─ Ver detalhes              │     ❌       │     ❌       │     ✅       │   ✅   │
+│  ├─ Criar novo                │     ❌       │     ❌       │     ✅       │   ✅   │
+│  ├─ Editar dados              │     ❌       │     ❌       │     ✅       │   ✅   │
+│  ├─ Ativar/Desativar          │     ❌       │     ❌       │     ✅       │   ✅   │
+│  └─ Deletar                   │     ❌       │     ❌       │     ✅       │   ✅   │
+│                                                                                      │
+│ WHITELIST (/whitelist)                                                              │
+│  ├─ Ver entradas              │     ❌       │     ❌       │     ✅       │   ✅   │
+│  ├─ Adicionar emails          │     ❌       │     ❌       │     ✅       │   ✅   │
+│  ├─ Editar                    │     ❌       │     ❌       │     ✅       │   ✅   │
+│  └─ Deletar                   │     ❌       │     ❌       │     ✅       │   ✅   │
+│                                                                                      │
+│ CERTIFICADOS (/certificados)                                                        │
+│  ├─ Ver certificados próprios │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Descarregar próprios      │     ✅       │     ✅       │     ✅       │   ✅   │
+│  ├─ Ver todos (como admin)    │     ❌       │     ✅       │     ❌       │   ✅   │
+│  ├─ Emitir                    │     ❌       │     ✅       │     ❌       │   ✅   │
+│  ├─ Revogar                   │     ❌       │     ❌       │     ❌       │   ✅   │
+│  └─ Deletar                   │     ❌       │     ❌       │     ❌       │   ✅   │
+│                                                                                      │
+│ AUDITORIA (/auditoria)                                                              │
+│  ├─ Ver logs                  │     ❌       │     ✅       │     ✅       │   ✅   │
+│  ├─ Pesquisar                 │     ❌       │     ✅       │     ✅       │   ✅   │
+│  └─ Deletar logs (apenas mod) │     ❌       │     ❌       │     ❌       │   ✅   │
+│                                                                                      │
+└───────────────────────────────┴──────────────┴──────────────┴──────────────┴────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ VERIFICAÇÕES DE SEGURANÇA IMPLEMENTADAS                                             │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  ✅ Isolamento de dados: Colaborador só vê seu progresso (email match)              │
+│  ✅ Role-based access: Cada operação verifica role do utilizador                   │
+│  ✅ Limite de ficheiros: PDFs limitados a 50MB, Certificados a 10MB                │
+│  ✅ Tipo MIME validado: Apenas application/pdf é aceite                            │
+│  ✅ Auditoria automática: Mudanças críticas podem ser logadas                      │
+│  ✅ Whitelist: Novo registo requer aprovação de gestor                             │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ EXEMPLOS DE FLUXO                                                                   │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  CENÁRIO 1: Novo colaborador regista-se                                             │
+│  ──────────────────────────────────────                                             │
+│  1. Email adicionado a /whitelist/{email} com registado=false                       │
+│  2. Acede ao site, clica "Registar"                                                 │
+│  3. Sistema valida email na whitelist e cria:                                       │
+│     - Utilizador em Authentication                                                  │
+│     - Documento em /employees/{email} com role="colaborador"                        │
+│  4. Colaborador consegue aceder a formações e certificados                          │
+│                                                                                      │
+│  CENÁRIO 2: Gestor de conteúdos cria nova formação                                 │
+│  ───────────────────────────────────────────────────                               │
+│  1. Acede a Admin > Formações > Criar Nova                                          │
+│  2. Preenche: Título, Módulos, Quiz, Data limite                                   │
+│  3. Sistema cria /courses/{courseId} + /courses/{courseId}/modules/{mid}            │
+│  4. Faz upload de PDFs: /storage/pdfs/{courseId}/{moduleId}.pdf                    │
+│  5. Publicar: formação fica visível a todos colaboradores                          │
+│                                                                                      │
+│  CENÁRIO 3: Gestor de RH promove colaborador a gestor                              │
+│  ──────────────────────────────────────────────────────                             │
+│  1. Acede a Admin > Utilizadores                                                    │
+│  2. Pesquisa colaborador                                                            │
+│  3. Edita: role="colaborador" → role="gestor_conteudos"                            │
+│  4. Sistema atualiza Firestore                                                      │
+│  5. Colaborador vê automaticamente novas opções ao fazer login                      │
+│                                                                                      │
+│  CENÁRIO 4: Colaborador conclui curso e ganha certificado                          │
+│  ─────────────────────────────────────────────────────────                          │
+│  1. Completa módulo + passa quiz                                                    │
+│  2. Progresso em /employees/{email}/progress/{courseId} ≥ 80%                      │
+│  3. Sistema sugere "Emitir certificado" (Gestor conteúdo)                          │
+│  4. Gestor clica "Emitir"                                                          │
+│  5. Sistema cria /certificados/{email}/{certId}.pdf                                │
+│  6. Colaborador pode descarregar na Dashboard                                       │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ DADOS NO FIRESTORE - ESTRUTURA RESUMIDA                                            │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  employees/                                                                         │
+│    ├─ user1@empresa.pt/                                                             │
+│    │   ├─ email: "user1@empresa.pt"                                                │
+│    │   ├─ nome: "João Silva"                                                       │
+│    │   ├─ role: "colaborador"                                                      │
+│    │   ├─ departamento: "Vendas"                                                   │
+│    │   ├─ ativo: true                                                              │
+│    │   ├─ criadoEm: timestamp                                                      │
+│    │   └─ progress/                                                                │
+│    │       └─ data: { rgpd: { m1: { ... } } }                                      │
+│    │                                                                                │
+│    └─ gestor@empresa.pt/                                                            │
+│        ├─ role: "gestor_conteudos"                                                 │
+│        └─ progress/ ...                                                             │
+│                                                                                      │
+│  courses/                                                                           │
+│    ├─ rgpd/                                                                         │
+│    │   ├─ title: "Proteção de Dados e RGPD"                                        │
+│    │   ├─ passingScore: 60                                                         │
+│    │   └─ modules/                                                                 │
+│    │       ├─ m1/ { title, content, quiz }                                        │
+│    │       └─ m2/ ...                                                              │
+│    │                                                                                │
+│    └─ sst/ ...                                                                      │
+│                                                                                      │
+│  certificados/                                                                      │
+│    └─ user1@empresa.pt/                                                             │
+│        └─ cert_12345/                                                              │
+│            ├─ cursoId: "rgpd"                                                      │
+│            ├─ titulo: "Proteção de Dados e RGPD"                                    │
+│            ├─ dataEmissao: timestamp                                                │
+│            └─ status: "ativo"                                                      │
+│                                                                                      │
+│  whitelist/                                                                         │
+│    └─ newuser@empresa.pt/                                                           │
+│        ├─ email: "newuser@empresa.pt"                                              │
+│        ├─ nome: "Maria Costa"                                                      │
+│        ├─ departamento: "IT"                                                       │
+│        └─ registado: false                                                         │
+│                                                                                      │
+│  auditoria/                                                                         │
+│    └─ 1779742800000/                                                               │
+│        ├─ timestamp: 1779742800000                                                 │
+│        ├─ userEmail: "gestor@empresa.pt"                                           │
+│        ├─ userRole: "gestor_conteudos"                                             │
+│        ├─ acao: "upload_pdf"                                                       │
+│        └─ resultado: "sucesso"                                                     │
+│                                                                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+LEGENDA:
+  ✅ = Acesso permitido
+  ❌ = Acesso denegado
