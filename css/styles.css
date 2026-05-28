@@ -1342,7 +1342,8 @@ select:focus-visible,
 @media (max-width: 760px) {
   .btn-icon,
   .icon-btn,
-  .logout-btn {
+  .logout-btn,
+  .sidebar-icon-btn {
     min-width: 44px;
     min-height: 44px;
     padding: 8px;
