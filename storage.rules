@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function userRole() {
+      return firestore.get(/databases/(default)/documents/employees/$(request.auth.token.email)).data.role;
+    }
+
+    function isContentManager() {
+      return signedIn() && userRole() in ['gestor_conteudos', 'administrador'];
+    }
+
+    match /pdfs/{courseId}/{moduleId} {
+      allow read: if signedIn();
+      allow write: if isContentManager()
+        && request.resource.size < 50 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    match /certificados/{email}/{certId} {
+      allow read: if signedIn() && request.auth.token.email == email;
+      allow write: if isContentManager()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    match /covers/{imageId} {
+      allow read: if signedIn();
+      allow write: if isContentManager()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+      allow delete: if isContentManager();
+    }
+  }
+}
