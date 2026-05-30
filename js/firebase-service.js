@@ -659,11 +659,16 @@ export async function deleteStorageFile(storagePath) {
 export async function getCoverImagesFromDB() {
   if (!isConfigured()) return [];
   init();
-  const snap = await getDocs(query(collection(_db, 'coverImages'), orderBy('uploadedAt', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    const snap = await getDocs(query(collection(_db, 'coverImages'), orderBy('uploadedAt', 'desc')));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
 }
 
 export function newCoverImageRef() {
+  if (!isConfigured()) throw new Error('Firebase não configurado.');
   init();
   return doc(collection(_db, 'coverImages'));
 }
