@@ -15,6 +15,7 @@
   --line-2:      #EEF2F7;
   --bg:          #F4F6FA;
   --white:       #FFFFFF;
+  --surface-1:   #FFFFFF;
   --green:       #1F9D55;
   --green-soft:  #E6F7EE;
   --red:         #D64545;
@@ -172,10 +173,10 @@ select:focus-visible,
 }
 
 .login-brand { display: flex; align-items: center; gap: 14px; position: relative; z-index: 2; }
-.login-brand-logo  { height: 38px; width: auto; }
-.login-brand-div   { width: 1px; height: 32px; background: rgba(255,255,255,.18); }
-.login-brand-name  { font-family: var(--display); font-size: 15px; font-weight: 900; color: white; line-height: 1.1; }
-.login-brand-tag   { font-size: 11.5px; color: rgba(255,255,255,.65); font-weight: 500; margin-top: 2px; }
+.login-brand-logo  { height: 92px; width: auto; }
+.login-brand-div   { width: 1px; height: 78px; background: rgba(255,255,255,.18); }
+.login-brand-name  { font-family: var(--display); font-size: 22px; font-weight: 900; color: white; line-height: 1.1; }
+.login-brand-tag   { font-size: 13px; color: rgba(255,255,255,.65); font-weight: 500; margin-top: 3px; }
 
 .login-hero { position: relative; z-index: 2; max-width: 480px; animation: fadeUp .6s ease .1s both; }
 .login-eyebrow {
@@ -546,6 +547,55 @@ select:focus-visible,
 .cover-palette-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; transition: transform .1s, border-color .15s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .cover-palette-swatch:hover { transform: scale(1.15); }
 .cover-palette-swatch.active { border-color: white; outline: 2px solid var(--cyan); outline-offset: 1px; }
+
+.cover-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.cover-tab {
+  padding: 5px 14px; border-radius: 6px; border: 1.5px solid var(--line);
+  background: var(--surface-1); color: var(--ink-2); font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.cover-tab.active {
+  background: var(--cyan); color: white; border-color: var(--cyan);
+}
+.cover-tab:not(.active):hover { border-color: var(--cyan); color: var(--cyan); }
+
+.cover-image-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px;
+}
+.cover-image-opt {
+  aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; cursor: pointer;
+  border: 2px solid transparent; transition: border-color .15s, transform .1s;
+  position: relative; background: var(--surface-1);
+}
+.cover-image-opt:hover { transform: scale(1.04); }
+.cover-image-opt.active { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0,145,214,.2); }
+.cover-image-opt img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover-image-del {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,.55); border: none; border-radius: 4px;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+.cover-image-opt:hover .cover-image-del { opacity: 1; }
+.cover-image-del:hover { background: var(--red); }
+
+.cover-upload-progress {
+  height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; width: 100%;
+}
+.cover-upload-progress-bar {
+  height: 100%; background: var(--cyan); border-radius: 3px;
+  width: 0%; transition: width .2s;
+}
+.cover-image-empty {
+  font-size: 13px; color: var(--ink-3); padding: 16px 0; text-align: center;
+}
+.cover-preview img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cover-preview-placeholder {
+  width: 100%; height: 100%; background: var(--surface-1);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3); font-size: 11px;
+}
+
 .btn-ghost {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 9px 20px; border: 1.5px solid var(--line);
