@@ -59,7 +59,12 @@ export async function uploadCoverImage(file, uploaderEmail, onProgress) {
     uploadedAt: new Date().toISOString(),
     usedBy: [],
   };
-  await saveCoverImageDoc(docRef, data);
+  try {
+    await saveCoverImageDoc(docRef, data);
+  } catch (err) {
+    await deleteStorageFile(storagePath).catch(() => {});
+    throw err;
+  }
   return { id: imageId, ...data };
 }
 
@@ -76,6 +81,9 @@ export async function deleteCoverImage(imageId) {
 }
 
 export async function setCoverImageUsage(imageId, courseId, used) {
-  if (!imageId || !courseId) return;
+  if (!imageId || !courseId) {
+    console.warn('[setCoverImageUsage] Missing imageId or courseId', { imageId, courseId });
+    return;
+  }
   await updateCoverImageUsageInDB(imageId, courseId, used);
 }
