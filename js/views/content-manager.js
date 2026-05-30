@@ -346,14 +346,14 @@ async function openCourseModal(course) {
   // ---- Tab switching ----
   function _activateTab(tab) {
     _activeTab = tab;
-    document.querySelectorAll('.cover-tab').forEach(btn =>
+    overlay.querySelectorAll('.cover-tab').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.tab === tab)
     );
     document.getElementById('c-tab-icon').style.display  = tab === 'icon'  ? '' : 'none';
     document.getElementById('c-tab-image').style.display = tab === 'image' ? '' : 'none';
     if (tab === 'image' && !_imageTabLoaded) {
       _imageTabLoaded = true;
-      _renderImageTab(document.getElementById('c-tab-image'));
+      _renderImageTab(document.getElementById('c-tab-image')).catch(() => {});
     }
     _updatePreview();
   }
@@ -399,9 +399,8 @@ async function openCourseModal(course) {
           _updatePreview();
         }
         thumb.remove();
-        const g = document.getElementById('c-image-grid');
-        if (g && g.children.length === 0) {
-          g.replaceWith(
+        if (grid.children.length === 0) {
+          grid.replaceWith(
             Object.assign(document.createElement('div'), {
               className: 'cover-image-empty',
               textContent: 'Ainda sem imagens. Carregue a primeira!',
