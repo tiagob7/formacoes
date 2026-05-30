@@ -75,10 +75,20 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /departments/{deptId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isEmployeeManager();
+    }
+
     match /certificados/{email}/{certId} {
       allow read: if signedIn() && (userEmail() == email || isAnyManager());
       allow create, update: if isContentManager();
       allow delete: if isAdmin();
+    }
+
+    match /coverImages/{imageId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
     }
   }
 }
