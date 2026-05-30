@@ -659,12 +659,8 @@ export async function deleteStorageFile(storagePath) {
 export async function getCoverImagesFromDB() {
   if (!isConfigured()) return [];
   init();
-  try {
-    const snap = await getDocs(query(collection(_db, 'coverImages'), orderBy('uploadedAt', 'desc')));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {
-    return [];
-  }
+  const snap = await getDocs(query(collection(_db, 'coverImages'), orderBy('uploadedAt', 'desc')));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export function newCoverImageRef() {

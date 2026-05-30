@@ -2,6 +2,7 @@ import { icon }                                           from '../icons.js';
 import { COURSES, courseProgress, getResumeCourse, globalProgress } from '../data.js';
 import { navigate }                                        from '../router.js';
 import { getState }                                        from '../state.js';
+import { courseCoverSVG }                                  from '../cover-service.js';
 
 export function renderDashboard(container) {
   const { user, progress } = getState();
@@ -142,49 +143,6 @@ function courseCard(course, p) {
         ${ctaLabel} ${icon('arrowRight', 13)}
       </button>
     </div>`;
-}
-
-function courseCoverSVG(id) {
-  const svgs = {
-    rgpd: `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-      <defs><linearGradient id="gc1" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#1A3A5C"/><stop offset="100%" stop-color="#0E2540"/>
-      </linearGradient></defs>
-      <rect width="200" height="110" fill="url(#gc1)"/>
-      <circle cx="170" cy="20" r="48" fill="#00AEEF" opacity=".18"/>
-      <circle cx="30" cy="95" r="36" fill="#00AEEF" opacity=".12"/>
-      <g transform="translate(72,28)">
-        <path d="M28 4L52 14V32C52 46 40 54 28 58C16 54 4 46 4 32V14Z" fill="white" opacity=".95"/>
-        <path d="M28 4L52 14V32C52 46 40 54 28 58C16 54 4 46 4 32V14Z" stroke="#00AEEF" stroke-width="1.5" fill="none"/>
-        <path d="M18 32L25 39L40 24" stroke="#1A3A5C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </g></svg>`,
-    sst: `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-      <defs><linearGradient id="gc2" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#1A3A5C"/><stop offset="100%" stop-color="#0E2540"/>
-      </linearGradient></defs>
-      <rect width="200" height="110" fill="url(#gc2)"/>
-      <circle cx="160" cy="25" r="45" fill="#00AEEF" opacity=".15"/>
-      <g transform="translate(68,18)">
-        <path d="M32 0L64 14V36C64 56 48 68 32 74C16 68 0 56 0 36V14Z" fill="white" opacity=".12"/>
-        <path d="M32 10L54 21V36C54 51 43 60 32 65C21 60 10 51 10 36V21Z" fill="white" opacity=".9"/>
-        <line x1="32" y1="24" x2="32" y2="44" stroke="#1A3A5C" stroke-width="4" stroke-linecap="round"/>
-        <line x1="22" y1="34" x2="42" y2="34" stroke="#1A3A5C" stroke-width="4" stroke-linecap="round"/>
-      </g></svg>`,
-    comunicacao: `<svg viewBox="0 0 200 110" fill="none" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-      <defs><linearGradient id="gc3" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#1A3A5C"/><stop offset="100%" stop-color="#0E2540"/>
-      </linearGradient></defs>
-      <rect width="200" height="110" fill="url(#gc3)"/>
-      <circle cx="155" cy="30" r="50" fill="#00AEEF" opacity=".15"/>
-      <rect x="50" y="22" width="80" height="52" rx="8" fill="white" opacity=".9"/>
-      <rect x="50" y="22" width="80" height="52" rx="8" fill="none" stroke="#00AEEF" stroke-width="1.5"/>
-      <path d="M70 74L62 84" stroke="white" stroke-width="2" opacity=".5"/>
-      <rect x="62" y="35" width="56" height="5" rx="2.5" fill="#C9D2DE"/>
-      <rect x="62" y="46" width="40" height="4" rx="2" fill="#C9D2DE"/>
-      <rect x="62" y="55" width="48" height="4" rx="2" fill="#C9D2DE"/>
-    </svg>`,
-  };
-  return svgs[id] || svgs['rgpd'];
 }
 
 function documentStack() {

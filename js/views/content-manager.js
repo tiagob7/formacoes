@@ -369,7 +369,7 @@ async function openCourseModal(course) {
   function _selectImage(imageId, imageUrl) {
     _selImageId  = imageId;
     _selImageUrl = imageUrl;
-    document.querySelectorAll('.cover-image-opt').forEach(el =>
+    overlay.querySelectorAll('.cover-image-opt').forEach(el =>
       el.classList.toggle('active', el.dataset.imgId === imageId)
     );
     _updatePreview();
@@ -517,6 +517,7 @@ async function openCourseModal(course) {
       : { criadoPor: user?.email || '', criadoEm: now, editadoPor: user?.email || '', editadoEm: now };
     let coverId = '';
     let coverImageUrl = '';
+    let coverImageId = '';
 
     if (_activeTab === 'image') {
       if (!_selImageId) {
@@ -525,11 +526,12 @@ async function openCourseModal(course) {
         return;
       }
       coverImageUrl = _selImageUrl;
+      coverImageId  = _selImageId;
     } else {
       coverId = (_pickerDirty || (isEdit && course?.coverId)) ? `${COVER_ICONS[_selIcon].key}|${_selPal}` : '';
     }
 
-    const data = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles: [], targetDepartments, status, coverId, coverImageUrl, order: isEdit ? (course.order ?? 0) : _courses.length, ...auditFields };
+    const data = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles: [], targetDepartments, status, coverId, coverImageUrl, coverImageId, order: isEdit ? (course.order ?? 0) : _courses.length, ...auditFields };
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
@@ -564,6 +566,9 @@ async function confirmDeleteCourse(course) {
   if (!ok) return;
   try {
     const { user: _u } = getState();
+    if (course.coverImageId) {
+      await setCoverImageUsage(course.coverImageId, course.id, false);
+    }
     await deleteCourseFromDB(course.id, course.title, _u?.email, _u?.role);
     clearCoursesCache();
     showToast('Formação eliminada.', 'success');
