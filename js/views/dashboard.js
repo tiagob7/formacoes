@@ -117,7 +117,11 @@ function courseCard(course, p) {
   const ctaLabel    = p.pct === 0 ? 'Começar' : p.pct === 100 ? 'Rever' : 'Continuar';
 
   return `
-    <div class="course-cover">${courseCoverSVG(course.id)}<div class="course-category">${course.category}</div></div>
+    <div class="course-cover">${
+      course.coverImageUrl
+        ? `<img src="${course.coverImageUrl.replace(/"/g, '&quot;')}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">`
+        : courseCoverSVG(course.id, course.category, course.coverId)
+    }<div class="course-category">${course.category}</div></div>
     <div class="course-body">
       <div class="course-status" style="background:${statusBg};color:${statusColor}">
         ${p.status === 'Concluída' ? icon('check', 11, statusColor, 3) : ''}
