@@ -63,7 +63,8 @@ service cloud.firestore {
     }
 
     match /whitelist/{email} {
-      allow read: if request.auth == null || isEmployeeManager();
+      allow get: if request.auth == null || isEmployeeManager();
+      allow list: if isEmployeeManager();
       allow update: if request.auth != null && request.auth.token.email == email;
       allow create, delete: if isEmployeeManager();
     }
@@ -74,10 +75,20 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /departments/{deptId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isEmployeeManager();
+    }
+
     match /certificados/{email}/{certId} {
       allow read: if signedIn() && (userEmail() == email || isAnyManager());
       allow create, update: if isContentManager();
       allow delete: if isAdmin();
+    }
+
+    match /coverImages/{imageId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isContentManager();
     }
   }
 }

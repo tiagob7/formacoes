@@ -3,10 +3,11 @@
  * Initialises the router, checks for an existing session,
  * and mounts the correct view.
  */
-import { route, initRouter, navigate, currentRouteVersion } from './router.js';
+import { route, initRouter, navigate, currentRouteVersion, onNotFound } from './router.js';
 import { getState, setState }           from './state.js';
-import { getSessionUser, loadProgress, hasRole } from './firebase-service.js';
+import { getSessionUser, loadProgress, hasRole, getEmployeeRecord } from './firebase-service.js';
 import { renderShell, wireShell }       from './ui.js';
+import { icon }                         from './icons.js';
 import { renderLogin }                  from './views/login.js';
 import { renderDashboard }              from './views/dashboard.js';
 import { renderCourseDetail }           from './views/course-detail.js';
@@ -51,6 +52,7 @@ function isCurrentRoute(version) {
 /* ------------------------------------------------------------------ */
 
 route('login', () => {
+  document.title = 'Iniciar Sessão · Algartempo Formações';
   const { user } = getState();
   if (user) { navigate('/dashboard'); return; }
   app.innerHTML = '';
@@ -58,36 +60,42 @@ route('login', () => {
 });
 
 route('dashboard', async () => {
+  document.title = 'Painel · Algartempo Formações';
   if (!requireAuth()) return;
   const main = mountShell('dashboard');
   await renderDashboard(main);
 });
 
 route('course/:courseId', async (params) => {
+  document.title = 'Curso · Algartempo Formações';
   if (!requireAuth()) return;
   const main = mountShell('dashboard');
   await renderCourseDetail(main, params);
 });
 
 route('module/:courseId/:moduleId', async (params) => {
+  document.title = 'Módulo · Algartempo Formações';
   if (!requireAuth()) return;
   const main = mountShell('module');
   await renderModule(main, params);
 });
 
 route('quiz/:courseId/:moduleId', async (params) => {
+  document.title = 'Avaliação · Algartempo Formações';
   if (!requireAuth()) return;
   const main = mountShell('quiz');
   await renderQuiz(main, params);
 });
 
 route('results/:courseId/:moduleId', async (params) => {
+  document.title = 'Resultados · Algartempo Formações';
   if (!requireAuth()) return;
   const main = mountShell('results');
   await renderResults(main, params);
 });
 
 route('certificates', async () => {
+  document.title = 'Certificados · Algartempo Formações';
   const v = currentRouteVersion();
   if (!requireAuth()) return;
   if (!isCurrentRoute(v)) return;
@@ -96,6 +104,7 @@ route('certificates', async () => {
 });
 
 route('notifications', async () => {
+  document.title = 'Notificações · Algartempo Formações';
   const v = currentRouteVersion();
   if (!requireAuth()) return;
   if (!isCurrentRoute(v)) return;
@@ -104,6 +113,7 @@ route('notifications', async () => {
 });
 
 route('administration', async () => {
+  document.title = 'Administração · Algartempo Formações';
   const v = currentRouteVersion();
   if (!requireAuth('administrador')) return;
   if (!isCurrentRoute(v)) return;
@@ -112,6 +122,7 @@ route('administration', async () => {
 });
 
 route('utilizadores', async () => {
+  document.title = 'Utilizadores · Algartempo Formações';
   const v = currentRouteVersion();
   if (!requireAuth(['administrador', 'gestor_colaboradores'])) return;
   if (!isCurrentRoute(v)) return;
@@ -120,6 +131,7 @@ route('utilizadores', async () => {
 });
 
 route('conteudos', async () => {
+  document.title = 'Gestão de Conteúdos · Algartempo Formações';
   const v = currentRouteVersion();
   if (!requireAuth(['gestor_conteudos', 'administrador'])) return;
   if (!isCurrentRoute(v)) return;
@@ -128,6 +140,7 @@ route('conteudos', async () => {
 });
 
 route('auditoria', async () => {
+  document.title = 'Auditoria · Algartempo Formações';
   const v = currentRouteVersion();
   if (!requireAuth(['administrador', 'gestor_conteudos', 'gestor_colaboradores'])) return;
   if (!isCurrentRoute(v)) return;
@@ -136,16 +149,44 @@ route('auditoria', async () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* 404 fallback                                                         */
+/* ------------------------------------------------------------------ */
+
+onNotFound(() => {
+  const { user } = getState();
+  if (!user) { navigate('/login'); return; }
+  document.title = 'Página não encontrada · Algartempo Formações';
+  const main = mountShell('');
+  main.innerHTML = `
+    <div class="empty-state" style="margin-top:80px">
+      <div class="empty-state-inner">
+        <div class="empty-state-icon">${icon('alert-circle', 40, 'var(--ink-3)')}</div>
+        <div class="empty-state-title">Página não encontrada</div>
+        <div class="empty-state-sub">O endereço que tentaste aceder não existe.</div>
+        <button class="btn btn-primary" style="margin-top:24px" onclick="location.hash='/dashboard'">
+          Voltar ao painel
+        </button>
+      </div>
+    </div>`;
+});
+
+/* ------------------------------------------------------------------ */
 /* Bootstrap                                                            */
 /* ------------------------------------------------------------------ */
 
 async function boot() {
-  // Check for existing session (survives page refresh)
   const sessionUser = getSessionUser();
   if (sessionUser) {
     try {
-      const progress = await loadProgress(sessionUser.email);
-      setState({ user: sessionUser, progress });
+      const [progress, fresh] = await Promise.all([
+        loadProgress(sessionUser.email),
+        getEmployeeRecord(sessionUser.email),
+      ]);
+      const user = fresh
+        ? { ...sessionUser, departamento: fresh.departamento }
+        : sessionUser;
+      if (fresh) sessionStorage.setItem('formacoes_user', JSON.stringify(user));
+      setState({ user, progress });
     } catch {
       setState({ user: sessionUser, progress: {} });
     }

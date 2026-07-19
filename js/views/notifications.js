@@ -1,6 +1,6 @@
 import { icon } from '../icons.js';
-import { loadCourses } from '../course-service.js';
-import { buildNotifications } from '../notification-service.js';
+import { loadCourses, getCachedCourses } from '../course-service.js';
+import { buildNotifications, dismissNotification, dismissAllNotifications, notificationCount } from '../notification-service.js';
 import { getState } from '../state.js';
 import { navigate } from '../router.js';
 import { renderLoadingState, renderEmptyState } from '../ui.js';
@@ -25,6 +25,11 @@ export async function renderNotifications(container) {
         <h1 class="topbar-title">Notificações</h1>
         <div class="topbar-sub">Prazos, novas formações e certificados disponíveis</div>
       </div>
+      ${notifications.length
+        ? `<button class="btn-ghost" id="clear-all-notif">
+             ${icon('x', 14)} Limpar todas
+           </button>`
+        : ''}
     </div>
 
     <div class="notifications-layout">
@@ -41,7 +46,23 @@ export async function renderNotifications(container) {
     </div>`;
 
   container.querySelectorAll('[data-notification-path]').forEach(btn => {
-    btn.addEventListener('click', () => navigate(btn.dataset.notificationPath));
+    btn.addEventListener('click', () => {
+      const { user, progress } = getState();
+      const notifId = btn.dataset.notificationId;
+      if (notifId && user?.email) {
+        dismissNotification(notifId, user.email);
+        updateSidebarBadge(user, progress);
+      }
+      navigate(btn.dataset.notificationPath);
+    });
+  });
+
+  document.getElementById('clear-all-notif')?.addEventListener('click', () => {
+    const { user, progress } = getState();
+    if (!user?.email) return;
+    dismissAllNotifications(courses, progress, user);
+    updateSidebarBadge(user, progress);
+    renderNotifications(container);
   });
 }
 
@@ -54,8 +75,29 @@ function notificationItem(item) {
         <div class="notification-title">${item.title}</div>
         <div class="notification-message">${item.message}</div>
       </div>
-      <button class="btn-ghost notification-action" data-notification-path="${item.path}">
+      <button class="btn-ghost notification-action"
+              data-notification-path="${item.path}"
+              data-notification-id="${item.id}">
         ${actionLabel} ${icon('arrowRight', 13)}
       </button>
     </article>`;
+}
+
+function updateSidebarBadge(user, progress) {
+  const count = notificationCount(getCachedCourses(), progress, user);
+  const badge = document.querySelector('.sidebar-notif-badge');
+  if (count > 0) {
+    if (badge) badge.textContent = count;
+    else {
+      const bellBtn = document.querySelector('.sidebar-icon-btn');
+      if (bellBtn) {
+        const span = document.createElement('span');
+        span.className = 'sidebar-notif-badge';
+        span.textContent = count;
+        bellBtn.appendChild(span);
+      }
+    }
+  } else {
+    badge?.remove();
+  }
 }

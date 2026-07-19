@@ -1,8 +1,8 @@
 import { initializeApp, deleteApp }                             from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut,
          createUserWithEmailAndPassword }                        from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc, query, collection, where, getDocs, orderBy, limit, startAfter, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+import { getFirestore, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove, query, collection, where, getDocs, orderBy, limit, startAfter, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 import { getFunctions, httpsCallable }                           from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 import { firebaseConfig } from './firebase-config.js';
 import { cache } from './cache.js';
@@ -92,6 +92,18 @@ export async function loginEmployee(email, password) {
   } catch (err) {
     throw err;
   }
+}
+
+export async function getEmployeeRecord(email) {
+  init();
+  if (!isConfigured()) return null;
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const snap = await getDoc(doc(_db, 'employees', normalizedEmail));
+    if (!snap.exists()) return null;
+    const d = snap.data();
+    return { departamento: d.departamento || '', role: d.role || 'colaborador', name: d.nome || '' };
+  } catch { return null; }
 }
 
 export async function logoutEmployee() {
@@ -264,19 +276,17 @@ export async function logAuditEvent(action, actor, actorRole, target, details = 
   cache.invalidate('audit');
 }
 
-export async function getAuditLog(maxEntries = 200) {
-  if (!isConfigured()) return [];
+export async function getAuditLog(pageSize = 20, afterDoc = null) {
+  if (!isConfigured()) return { entries: [], lastVisible: null };
   init();
-  const cached = cache.get('audit');
-  if (cached !== null) return cached;
   try {
-    const snap = await getDocs(
-      query(collection(_db, 'auditoria'), orderBy('timestamp', 'desc'), limit(maxEntries))
-    );
-    const result = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    cache.set('audit', result);
-    return result;
-  } catch { return []; }
+    const constraints = [orderBy('timestamp', 'desc'), limit(pageSize)];
+    if (afterDoc) constraints.push(startAfter(afterDoc));
+    const snap = await getDocs(query(collection(_db, 'auditoria'), ...constraints));
+    const entries = snap.docs.map(d => ({ id: d.id, ...d.data(), _snap: d }));
+    const lastVisible = snap.docs[snap.docs.length - 1] || null;
+    return { entries, lastVisible };
+  } catch { return { entries: [], lastVisible: null }; }
 }
 
 export async function signInOnly(email, password) {
@@ -303,7 +313,7 @@ export async function createAuthUser(email, password) {
   await deleteApp(secondaryApp);
 }
 
-export async function createEmployeeDoc(email, nome, role = 'colaborador', departamento = '', criadoPor = '') {
+export async function createEmployeeDoc(email, nome, role = 'colaborador', departamento = '', nrCol = '', nif = '', criadoPor = '') {
   init();
   const normalizedEmail = email.trim().toLowerCase();
   await setDoc(doc(_db, 'employees', normalizedEmail), {
@@ -311,6 +321,8 @@ export async function createEmployeeDoc(email, nome, role = 'colaborador', depar
     nome,
     role,
     departamento,
+    nrCol,
+    nif,
     ativo: true,
     criadoEm: new Date().toISOString(),
     criadoPor,
@@ -318,9 +330,9 @@ export async function createEmployeeDoc(email, nome, role = 'colaborador', depar
   cache.invalidate('employees');
 }
 
-export async function createEmployee(email, password, nome, role = 'colaborador', departamento = '', criadoPor = '') {
+export async function createEmployee(email, password, nome, role = 'colaborador', departamento = '', nrCol = '', nif = '', criadoPor = '') {
   await createAuthUser(email, password);
-  await createEmployeeDoc(email, nome, role, departamento, criadoPor);
+  await createEmployeeDoc(email, nome, role, departamento, nrCol, nif, criadoPor);
 }
 
 export async function updateEmployee(email, data, editadoPor = '') {
@@ -601,4 +613,81 @@ export async function deleteDepartment(id) {
 export function hasRole(currentRole, requiredRole) {
   const hierarchy = { colaborador: 0, gestor_conteudos: 1, gestor_colaboradores: 1, administrador: 2 };
   return (hierarchy[currentRole] ?? -1) >= (hierarchy[requiredRole] ?? -1);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cover Image Storage                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Uploads an image blob to Firebase Storage.
+ * Calls onProgress(pct 0-100) during upload.
+ * Returns the public download URL.
+ */
+export function uploadImageFile(storagePath, blob, onProgress) {
+  if (!isConfigured()) {
+    return Promise.reject(new Error('Firebase não configurado.'));
+  }
+  init();
+  return new Promise((resolve, reject) => {
+    const storageRef = ref(_storage, storagePath);
+    const task = uploadBytesResumable(storageRef, blob, { contentType: 'image/jpeg' });
+    task.on('state_changed',
+      (snap) => onProgress && onProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      reject,
+      async () => {
+        try { resolve(await getDownloadURL(task.snapshot.ref)); }
+        catch (e) { reject(e); }
+      }
+    );
+  });
+}
+
+/**
+ * Deletes a file from Firebase Storage by path.
+ */
+export async function deleteStorageFile(storagePath) {
+  if (!isConfigured()) return;
+  init();
+  await deleteObject(ref(_storage, storagePath));
+}
+
+/* ------------------------------------------------------------------ */
+/* Cover Image Firestore CRUD                                           */
+/* ------------------------------------------------------------------ */
+
+export async function getCoverImagesFromDB() {
+  if (!isConfigured()) return [];
+  init();
+  const snap = await getDocs(query(collection(_db, 'coverImages'), orderBy('uploadedAt', 'desc')));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export function newCoverImageRef() {
+  if (!isConfigured()) throw new Error('Firebase não configurado.');
+  init();
+  return doc(collection(_db, 'coverImages'));
+}
+
+export async function saveCoverImageDoc(docRef, data) {
+  init();
+  await setDoc(docRef, data);
+}
+
+export async function deleteCoverImageDoc(imageId) {
+  init();
+  await deleteDoc(doc(_db, 'coverImages', imageId));
+}
+
+export async function getCoverImageDoc(imageId) {
+  init();
+  const snap = await getDoc(doc(_db, 'coverImages', imageId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function updateCoverImageUsageInDB(imageId, courseId, used) {
+  init();
+  await updateDoc(doc(_db, 'coverImages', imageId), {
+    usedBy: used ? arrayUnion(courseId) : arrayRemove(courseId),
+  });
 }

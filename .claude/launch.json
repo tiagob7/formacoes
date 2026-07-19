@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "formacoes",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "3500", "--bind", "127.0.0.1"],
+      "port": 3500
+    }
+  ]
+}

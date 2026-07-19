@@ -118,7 +118,7 @@ function topBar(course) {
     <div class="topbar">
       <div>
         <div class="breadcrumbs">
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Painel</span>
+          <button class="breadcrumb-back" onclick="navigate('/dashboard')">Painel</button>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
           <span class="breadcrumb-current">${course.title}</span>
         </div>

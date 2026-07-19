@@ -1,5 +1,40 @@
 import { courseProgress, getCourseDeadlineState, isCourseVisibleToUser } from './course-service.js';
 
+/* ------------------------------------------------------------------ */
+/* Dismissed-notification persistence (localStorage, per user)         */
+/* ------------------------------------------------------------------ */
+
+function storageKey(userEmail) {
+  return `notif_dismissed:${userEmail}`;
+}
+
+export function getDismissedIds(userEmail) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(storageKey(userEmail)) || '[]'));
+  } catch { return new Set(); }
+}
+
+export function dismissNotification(id, userEmail) {
+  const set = getDismissedIds(userEmail);
+  set.add(id);
+  try { localStorage.setItem(storageKey(userEmail), JSON.stringify([...set])); } catch {}
+}
+
+export function clearDismissedNotifications(userEmail) {
+  try { localStorage.removeItem(storageKey(userEmail)); } catch {}
+}
+
+export function dismissAllNotifications(courses, progress, user) {
+  const notifications = buildNotifications(courses, progress, user);
+  const set = getDismissedIds(user.email);
+  notifications.forEach(n => set.add(n.id));
+  try { localStorage.setItem(storageKey(user.email), JSON.stringify([...set])); } catch {}
+}
+
+/* ------------------------------------------------------------------ */
+/* Build & count                                                        */
+/* ------------------------------------------------------------------ */
+
 export function buildNotifications(courses, progress, user = null) {
   if (!Array.isArray(courses)) return [];
 
@@ -58,7 +93,10 @@ export function buildNotifications(courses, progress, user = null) {
       }
     });
 
-  return notifications.sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
+  const dismissed = user?.email ? getDismissedIds(user.email) : new Set();
+  return notifications
+    .filter(n => !dismissed.has(n.id))
+    .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title));
 }
 
 export function notificationCount(courses, progress, user = null) {

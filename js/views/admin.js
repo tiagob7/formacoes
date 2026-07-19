@@ -180,6 +180,17 @@ async function openManagerModal(emp, all) {
         <label class="form-label" style="margin-top:1rem">Departamento</label>
         ${deptOptions}
 
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1rem">
+          <div>
+            <label class="form-label">Nº Colaborador</label>
+            <input id="u-nrcol" class="form-input" value="${escHtml(emp?.nrCol || '')}" placeholder="ex.: 1042" />
+          </div>
+          <div>
+            <label class="form-label">NIF</label>
+            <input id="u-nif" class="form-input" value="${escHtml(emp?.nif || '')}" placeholder="ex.: 123456789" maxlength="9" />
+          </div>
+        </div>
+
         ${!isEdit ? `
         <label class="form-label" style="margin-top:1rem">Palavra-passe</label>
         <input id="u-password" class="form-input" type="password"
@@ -226,6 +237,8 @@ async function openManagerModal(emp, all) {
     const departamento = dSel?.tagName === 'SELECT'
       ? (dSel.value === '__outro__' ? (dOutro?.value.trim() || '') : dSel.value)
       : (dSel?.value.trim() || '');
+    const nrCol    = document.getElementById('u-nrcol').value.trim();
+    const nif      = document.getElementById('u-nif').value.trim();
     const password = !isEdit ? document.getElementById('u-password').value : null;
     const role     = document.getElementById('u-role').value;
     const ativo    = isEdit ? document.getElementById('u-ativo').value === 'true' : true;
@@ -243,10 +256,10 @@ async function openManagerModal(emp, all) {
     const { user: adminUser } = getState();
     try {
       if (isEdit) {
-        await updateEmployee(email, { nome, role, departamento, ativo }, adminUser?.email || '');
+        await updateEmployee(email, { nome, role, departamento, nrCol, nif, ativo }, adminUser?.email || '');
         await logAuditEvent('edit_user', adminUser?.email, adminUser?.role, email, `role: ${role}, ativo: ${ativo}`);
       } else {
-        await createEmployee(email, password, nome, role, departamento, adminUser?.email || '');
+        await createEmployee(email, password, nome, role, departamento, nrCol, nif, adminUser?.email || '');
         await logAuditEvent('create_user', adminUser?.email, adminUser?.role, email, `role: ${role}`);
       }
       showToast(`Utilizador ${isEdit ? 'atualizado' : 'criado'}.`, 'success');

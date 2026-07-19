@@ -37,7 +37,7 @@ export async function renderQuiz(container, { courseId, moduleId }) {
       <div class="topbar">
         <div>
           <div class="breadcrumbs">
-            <span style="cursor:pointer;color:var(--ink-3)" onclick="history.back()">← Módulo</span>
+            <button class="breadcrumb-back" onclick="history.back()">← Módulo</button>
             <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
             <span class="breadcrumb-current">Avaliação</span>
           </div>
@@ -65,7 +65,7 @@ export async function renderQuiz(container, { courseId, moduleId }) {
       <div class="topbar">
         <div>
           <div class="breadcrumbs">
-            <span style="cursor:pointer;color:var(--ink-3)" onclick="history.back()">← Módulo</span>
+            <button class="breadcrumb-back" onclick="history.back()">← Módulo</button>
             <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
             <span class="breadcrumb-current">Avaliação</span>
           </div>

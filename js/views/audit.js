@@ -3,6 +3,8 @@ import { getState }     from '../state.js';
 import { getAuditLog }  from '../firebase-service.js';
 import { renderLoadingState, renderEmptyState } from '../ui.js';
 
+const PAGE_SIZE = 20;
+
 const ACTION_META = {
   create_user:    { label: 'Criar utilizador',   color: 'var(--cyan-2)',  iconName: 'plus'     },
   edit_user:      { label: 'Editar utilizador',   color: 'var(--amber)',   iconName: 'edit'     },
@@ -43,8 +45,7 @@ const ROLE_LABEL = { administrador: 'Administrador', gestor_conteudos: 'Gestor d
 
 export async function renderAudit(container) {
   const { user } = getState();
-  const allowedRoles = ['administrador', 'gestor_conteudos', 'gestor_colaboradores'];
-  if (!allowedRoles.includes(user?.role)) {
+  if (user?.role !== 'administrador') {
     container.innerHTML = '<p class="access-denied">Acesso negado.</p>'; return;
   }
 
@@ -59,11 +60,10 @@ export async function renderAudit(container) {
       ${renderLoadingState('A carregar registos...')}
     </div>`;
 
-  let entries = [];
-  try { entries = await getAuditLog(500); } catch { /* empty */ }
+  const { entries: firstPage, lastVisible } = await getAuditLog(PAGE_SIZE).catch(() => ({ entries: [], lastVisible: null }));
 
   const body = container.querySelector('.audit-body');
-  if (!entries.length) {
+  if (!firstPage.length) {
     body.innerHTML = renderEmptyState({
       iconName: 'activity',
       title: 'Sem registos',
@@ -72,7 +72,9 @@ export async function renderAudit(container) {
     return;
   }
 
-  const actionKeys = [...new Set(entries.map(e => e.action))].sort();
+  let allEntries = firstPage;
+  let cursor = lastVisible;
+  let hasMore = firstPage.length === PAGE_SIZE;
 
   body.innerHTML = `
     <div class="audit-toolbar">
@@ -80,9 +82,9 @@ export async function renderAudit(container) {
              placeholder="Pesquisar por ator, alvo ou detalhes…" />
       <select id="audit-filter" class="form-input" style="max-width:200px">
         <option value="">Todos os tipos</option>
-        ${actionKeys.map(k => `<option value="${k}">${meta(k).label}</option>`).join('')}
+        ${Object.keys(ACTION_META).map(k => `<option value="${k}">${ACTION_META[k].label}</option>`).join('')}
       </select>
-      <span id="audit-count" class="admin-count-badge">${entries.length} eventos</span>
+      <span id="audit-count" class="admin-count-badge">${firstPage.length} eventos</span>
     </div>
     <div class="admin-table-wrap">
       <table class="admin-table audit-table">
@@ -95,41 +97,65 @@ export async function renderAudit(container) {
         </tr></thead>
         <tbody id="audit-tbody"></tbody>
       </table>
+    </div>
+    <div id="audit-load-more" style="display:${hasMore ? 'flex' : 'none'};justify-content:center;padding:1.25rem 0">
+      <button class="btn-ghost" id="btn-load-more">
+        ${icon('chevron-down', 14)} Carregar mais
+      </button>
     </div>`;
-
-  renderRows(entries, entries);
 
   const searchEl  = document.getElementById('audit-search');
   const filterEl  = document.getElementById('audit-filter');
   const countEl   = document.getElementById('audit-count');
 
-  function applyFilters() {
-    const q   = searchEl.value.toLowerCase();
-    const act = filterEl.value;
-    const filtered = entries.filter(e => {
-      if (act && e.action !== act) return false;
-      if (q) {
-        const haystack = `${e.actor} ${e.target} ${e.details} ${e.actorRole}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-    countEl.textContent = `${filtered.length} evento${filtered.length !== 1 ? 's' : ''}`;
-    renderRows(filtered, entries);
-  }
+  renderRows(allEntries, searchEl.value, filterEl.value, countEl);
 
-  searchEl.addEventListener('input', applyFilters);
-  filterEl.addEventListener('change', applyFilters);
+  searchEl.addEventListener('input',  () => renderRows(allEntries, searchEl.value, filterEl.value, countEl));
+  filterEl.addEventListener('change', () => renderRows(allEntries, searchEl.value, filterEl.value, countEl));
+
+  document.getElementById('btn-load-more')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-load-more');
+    btn.disabled = true;
+    btn.innerHTML = `${icon('spinner', 14)} A carregar…`;
+
+    const { entries: nextPage, lastVisible: newCursor } = await getAuditLog(PAGE_SIZE, cursor).catch(() => ({ entries: [], lastVisible: null }));
+
+    allEntries = [...allEntries, ...nextPage];
+    cursor = newCursor;
+    hasMore = nextPage.length === PAGE_SIZE;
+
+    renderRows(allEntries, searchEl.value, filterEl.value, countEl);
+
+    const loadMoreDiv = document.getElementById('audit-load-more');
+    if (!hasMore) {
+      loadMoreDiv.style.display = 'none';
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = `${icon('chevron-down', 14)} Carregar mais`;
+    }
+  });
 }
 
-function renderRows(list, _all) {
+function renderRows(list, query = '', actionFilter = '', countEl) {
+  const q = query.toLowerCase();
+  const filtered = list.filter(e => {
+    if (actionFilter && e.action !== actionFilter) return false;
+    if (q) {
+      const haystack = `${e.actor} ${e.target} ${e.details} ${e.actorRole}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (countEl) countEl.textContent = `${filtered.length} evento${filtered.length !== 1 ? 's' : ''}`;
+
   const tbody = document.getElementById('audit-tbody');
   if (!tbody) return;
-  if (!list.length) {
+  if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="5" class="table-empty">Nenhum evento encontrado</td></tr>`;
     return;
   }
-  tbody.innerHTML = list.map(e => {
+  tbody.innerHTML = filtered.map(e => {
     const m = meta(e.action);
     const roleLabel = ROLE_LABEL[e.actorRole] || e.actorRole || '';
     return `

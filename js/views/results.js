@@ -97,9 +97,9 @@ export async function renderResults(container, { courseId, moduleId }) {
     <div class="topbar">
       <div>
         <div class="breadcrumbs">
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="navigate('/dashboard')">Painel</span>
+          <button class="breadcrumb-back" onclick="navigate('/dashboard')">Painel</button>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
-          <span style="cursor:pointer;color:var(--ink-3)" onclick="history.go(-2)">${course.title}</span>
+          <button class="breadcrumb-back" onclick="history.go(-2)">${course.title}</button>
           <span class="breadcrumb-sep">${icon('chevronRight', 12, '#D1D5DB')}</span>
           <span class="breadcrumb-current">Resultados</span>
         </div>

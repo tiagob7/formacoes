@@ -4,7 +4,8 @@ import { getState }   from '../state.js';
 import { showToast, confirmDialog }  from '../ui.js';
 import { COURSES }    from '../data.js';
 import { clearCoursesCache } from '../course-service.js';
-import { getCoursesFromDB, saveCourse, deleteCourseFromDB, saveModule, deleteModuleFromDB, uploadModulePDF, getModulePdfUrl } from '../firebase-service.js';
+import { getCoverImages, uploadCoverImage, deleteCoverImage, setCoverImageUsage } from '../cover-image-service.js';
+import { getCoursesFromDB, saveCourse, deleteCourseFromDB, saveModule, deleteModuleFromDB, uploadModulePDF, getModulePdfUrl, getDepartments } from '../firebase-service.js';
 
 let _courses         = [];
 let _editQuiz        = [];
@@ -175,8 +176,10 @@ function moduleRow(courseId, mod, idx, total) {
 /* Modal: Criar / Editar Formação                                       */
 /* ------------------------------------------------------------------ */
 
-function openCourseModal(course) {
+async function openCourseModal(course) {
   const isEdit = !!course;
+  const departments = await getDepartments().catch(() => []);
+  const currentDepts = (course?.targetDepartments || []).map(v => v.toLowerCase());
   const overlay = createOverlay(`
     <div class="modal modal-wide">
       <div class="modal-header">
@@ -226,17 +229,35 @@ function openCourseModal(course) {
         </select>
 
         <label class="form-label" style="margin-top:1rem">Departamentos alvo</label>
-        <input id="c-target-departments" class="form-input" value="${escHtml((course?.targetDepartments || []).join(', '))}" placeholder="ex.: RH, Operações" />
+        <div id="c-target-departments-group" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+          ${departments.length
+            ? departments.map(d => `
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;
+                              background:var(--surface-1,#F4F6FA);border:1.5px solid var(--border,#E2E8F0);
+                              border-radius:6px;padding:5px 10px;user-select:none">
+                  <input type="checkbox" value="${escHtml(d.nome)}"
+                    ${currentDepts.includes(d.nome.toLowerCase()) ? 'checked' : ''} />
+                  ${escHtml(d.nome)}
+                </label>`).join('')
+            : `<span style="font-size:13px;color:var(--ink-3)">Sem departamentos configurados — crie-os em <strong>Utilizadores → Departamentos</strong>.</span>`}
+        </div>
 
         <div class="cover-picker">
           <label class="form-label">Capa</label>
           <div class="cover-picker-layout">
             <div class="cover-preview" id="c-cover-preview"></div>
             <div>
-              <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Ícone</div>
-              <div class="cover-icon-grid" id="c-icon-grid"></div>
-              <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:6px">Cor</div>
-              <div class="cover-palette-row" id="c-palette-row"></div>
+              <div class="cover-tabs" id="c-cover-tabs">
+                <button class="cover-tab" data-tab="icon">Ícone</button>
+                <button class="cover-tab" data-tab="image">Imagem</button>
+              </div>
+              <div id="c-tab-icon">
+                <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Ícone</div>
+                <div class="cover-icon-grid" id="c-icon-grid"></div>
+                <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:10px;margin-bottom:6px">Cor</div>
+                <div class="cover-palette-row" id="c-palette-row"></div>
+              </div>
+              <div id="c-tab-image" style="display:none"></div>
             </div>
           </div>
         </div>
@@ -251,10 +272,15 @@ function openCourseModal(course) {
   document.getElementById('modal-close').addEventListener('click', () => overlay.remove());
   document.getElementById('modal-cancel').addEventListener('click', () => overlay.remove());
 
-  // Cover picker
+  // Cover picker state
   let _selIcon = 0;
   let _selPal  = 0;
-  let _pickerDirty = false;
+  let _pickerDirty   = false;
+  let _activeTab     = course?.coverImageUrl ? 'image' : 'icon';
+  let _selImageId    = '';
+  let _selImageUrl   = course?.coverImageUrl || '';
+  let _origImageId   = '';
+  let _imageTabLoaded = false;
 
   if (course?.coverId) {
     const [k, p] = course.coverId.split('|');
@@ -263,10 +289,15 @@ function openCourseModal(course) {
     if (p !== undefined) _selPal = Math.min(parseInt(p, 10) || 0, COVER_PALETTES.length - 1);
   }
 
-  function _refreshPreview() {
-    const ic = COVER_ICONS[_selIcon];
-    document.getElementById('c-cover-preview').innerHTML =
-      courseCoverSVG('preview', '', `${ic.key}|${_selPal}`);
+  function _updatePreview() {
+    const prev = document.getElementById('c-cover-preview');
+    if (_activeTab === 'image' && _selImageUrl) {
+      prev.innerHTML = `<img src="${_selImageUrl.replace(/"/g,'&quot;')}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+    } else if (_activeTab === 'image') {
+      prev.innerHTML = `<div class="cover-preview-placeholder">Sem imagem</div>`;
+    } else {
+      prev.innerHTML = courseCoverSVG('preview', '', `${COVER_ICONS[_selIcon].key}|${_selPal}`);
+    }
   }
 
   function _refreshIconGrid() {
@@ -282,7 +313,7 @@ function openCourseModal(course) {
         _pickerDirty = true;
         grid.querySelectorAll('.cover-icon-opt').forEach(el => el.classList.remove('active'));
         div.classList.add('active');
-        _refreshPreview();
+        _updatePreview();
       });
       grid.appendChild(div);
     });
@@ -302,7 +333,7 @@ function openCourseModal(course) {
         row.querySelectorAll('.cover-palette-swatch').forEach(el => el.classList.remove('active'));
         sw.classList.add('active');
         _refreshIconGrid();
-        _refreshPreview();
+        _updatePreview();
       });
       row.appendChild(sw);
     });
@@ -310,7 +341,155 @@ function openCourseModal(course) {
 
   _refreshIconGrid();
   _refreshPaletteRow();
-  _refreshPreview();
+  _updatePreview();
+
+  // ---- Tab switching ----
+  function _activateTab(tab) {
+    _activeTab = tab;
+    overlay.querySelectorAll('.cover-tab').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.tab === tab)
+    );
+    document.getElementById('c-tab-icon').style.display  = tab === 'icon'  ? '' : 'none';
+    document.getElementById('c-tab-image').style.display = tab === 'image' ? '' : 'none';
+    if (tab === 'image' && !_imageTabLoaded) {
+      _imageTabLoaded = true;
+      _renderImageTab(document.getElementById('c-tab-image')).catch(() => {});
+    }
+    _updatePreview();
+  }
+
+  document.getElementById('c-cover-tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.cover-tab');
+    if (btn) _activateTab(btn.dataset.tab);
+  });
+
+  _activateTab(_activeTab);
+
+  // ---- Image tab ----
+  function _selectImage(imageId, imageUrl) {
+    _selImageId  = imageId;
+    _selImageUrl = imageUrl;
+    overlay.querySelectorAll('.cover-image-opt').forEach(el =>
+      el.classList.toggle('active', el.dataset.imgId === imageId)
+    );
+    _updatePreview();
+  }
+
+  function _addImageThumb(grid, img) {
+    const thumb = document.createElement('div');
+    thumb.className = 'cover-image-opt' + (img.id === _selImageId ? ' active' : '');
+    thumb.dataset.imgId  = img.id;
+    thumb.dataset.imgUrl = img.url;
+    thumb.innerHTML = `
+      <img src="${escHtml(img.url)}" alt="${escHtml(img.filename || '')}" loading="lazy">
+      <button class="cover-image-del" title="Apagar imagem" aria-label="Apagar imagem">${icon('trash', 10, 'white')}</button>`;
+
+    thumb.addEventListener('click', (e) => {
+      if (e.target.closest('.cover-image-del')) return;
+      _selectImage(img.id, img.url);
+    });
+
+    thumb.querySelector('.cover-image-del').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await deleteCoverImage(img.id);
+        if (_selImageId === img.id) {
+          _selImageId  = '';
+          _selImageUrl = '';
+          _updatePreview();
+        }
+        thumb.remove();
+        if (grid.children.length === 0) {
+          grid.replaceWith(
+            Object.assign(document.createElement('div'), {
+              className: 'cover-image-empty',
+              textContent: 'Ainda sem imagens. Carregue a primeira!',
+            })
+          );
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    grid.appendChild(thumb);
+  }
+
+  async function _renderImageTab(container) {
+    container.innerHTML = `<div class="admin-loading">${icon('spinner', 16)} A carregar...</div>`;
+    let images;
+    try {
+      images = await getCoverImages();
+    } catch {
+      container.innerHTML = `<p style="color:var(--red);font-size:13px">Erro ao carregar imagens.</p>`;
+      return;
+    }
+
+    // Resolve _origImageId from catalog
+    if (_selImageUrl) {
+      const match = images.find(i => i.url === _selImageUrl);
+      if (match) { _selImageId = match.id; _origImageId = match.id; }
+    }
+
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <button class="btn-sm" id="c-img-upload-btn">${icon('plus', 12)} Carregar imagem</button>
+        <div id="c-img-progress" style="display:none;flex:1">
+          <div class="cover-upload-progress">
+            <div class="cover-upload-progress-bar" id="c-img-bar"></div>
+          </div>
+        </div>
+      </div>
+      ${images.length
+        ? `<div class="cover-image-grid" id="c-image-grid"></div>`
+        : `<div class="cover-image-empty" id="c-image-empty">Ainda sem imagens. Carregue a primeira!</div>`}
+      <input type="file" id="c-img-input" accept="image/jpeg,image/png,image/webp" style="display:none">`;
+
+    if (images.length) {
+      const grid = container.querySelector('#c-image-grid');
+      images.forEach(img => _addImageThumb(grid, img));
+    }
+
+    const uploadBtn = container.querySelector('#c-img-upload-btn');
+    const fileInput = container.querySelector('#c-img-input');
+
+    uploadBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      uploadBtn.disabled = true;
+      const progressDiv = container.querySelector('#c-img-progress');
+      const bar         = container.querySelector('#c-img-bar');
+      progressDiv.style.display = 'flex';
+
+      try {
+        const { user } = getState();
+        const newImg = await uploadCoverImage(file, user?.email || '', (pct) => {
+          bar.style.width = pct + '%';
+        });
+
+        let grid = container.querySelector('#c-image-grid');
+        if (!grid) {
+          container.querySelector('#c-image-empty')?.remove();
+          grid = document.createElement('div');
+          grid.className = 'cover-image-grid';
+          grid.id = 'c-image-grid';
+          container.querySelector('#c-img-upload-btn').closest('div').after(grid);
+        }
+        _addImageThumb(grid, newImg);
+        _selectImage(newImg.id, newImg.url);
+      } catch (err) {
+        showToast('Erro ao carregar: ' + err.message, 'error');
+      } finally {
+        uploadBtn.disabled = false;
+        progressDiv.style.display = 'none';
+        bar.style.width = '0%';
+        fileInput.value = '';
+      }
+    });
+  }
 
   document.getElementById('modal-save').addEventListener('click', async () => {
     const title    = document.getElementById('c-title').value.trim();
@@ -320,7 +499,10 @@ function openCourseModal(course) {
     const passing  = parseInt(document.getElementById('c-passing').value) || 60;
     const dueDate  = document.getElementById('c-due-date').value || '';
     const isRequired = document.getElementById('c-required').value === 'true';
-    const targetDepartments = parseCsvList(document.getElementById('c-target-departments').value);
+    const targetDepartments = Array.from(
+      document.querySelectorAll('#c-target-departments-group input:checked'),
+      el => el.value
+    );
     const errEl    = document.getElementById('c-error');
 
     if (!title) { errEl.textContent = 'O título é obrigatório.'; errEl.style.display = 'block'; return; }
@@ -333,13 +515,37 @@ function openCourseModal(course) {
     const auditFields = isEdit
       ? { editadoPor: user?.email || '', editadoEm: now }
       : { criadoPor: user?.email || '', criadoEm: now, editadoPor: user?.email || '', editadoEm: now };
-    const coverId  = (_pickerDirty || (isEdit && course?.coverId)) ? `${COVER_ICONS[_selIcon].key}|${_selPal}` : '';
-    const data     = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles: [], targetDepartments, status, coverId, order: isEdit ? (course.order ?? 0) : _courses.length, ...auditFields };
+    let coverId = '';
+    let coverImageUrl = '';
+    let coverImageId = '';
+
+    if (_activeTab === 'image') {
+      if (!_selImageId) {
+        errEl.textContent = 'Selecione uma imagem ou mude para o tab Ícone.';
+        errEl.style.display = 'block';
+        return;
+      }
+      coverImageUrl = _selImageUrl;
+      coverImageId  = _selImageId;
+    } else {
+      coverId = (_pickerDirty || (isEdit && course?.coverId)) ? `${COVER_ICONS[_selIcon].key}|${_selPal}` : '';
+    }
+
+    const data = { title, subtitle, duration, category, passingScore: passing, dueDate, isRequired, targetRoles: [], targetDepartments, status, coverId, coverImageUrl, coverImageId, order: isEdit ? (course.order ?? 0) : _courses.length, ...auditFields };
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
     try {
       await saveCourse(courseId, data, user?.email, user?.role);
+      // Update coverImages usedBy tracking
+      if (_activeTab === 'image') {
+        await setCoverImageUsage(_selImageId, courseId, true);
+        if (_origImageId && _origImageId !== _selImageId) {
+          await setCoverImageUsage(_origImageId, courseId, false);
+        }
+      } else if (_origImageId) {
+        await setCoverImageUsage(_origImageId, courseId, false);
+      }
       clearCoursesCache();
       showToast(`Formação ${isEdit ? 'atualizada' : 'criada'}.`, 'success');
       overlay.remove();
@@ -360,6 +566,9 @@ async function confirmDeleteCourse(course) {
   if (!ok) return;
   try {
     const { user: _u } = getState();
+    if (course.coverImageId) {
+      await setCoverImageUsage(course.coverImageId, course.id, false);
+    }
     await deleteCourseFromDB(course.id, course.title, _u?.email, _u?.role);
     clearCoursesCache();
     showToast('Formação eliminada.', 'success');
@@ -374,10 +583,10 @@ async function confirmDeleteCourse(course) {
 function openModuleModal(course, mod) {
   const isEdit = !!mod;
   _editContent = isEdit && Array.isArray(mod.content) && mod.content.length
-    ? mod.content.map(b => ({ ...b, items: b.items ? [...b.items] : undefined }))
+    ? mod.content.map(b => ({ ...b, ...(b.items ? { items: [...b.items] } : {}) }))
     : [];
   _editQuiz = isEdit && Array.isArray(mod.quiz)
-    ? mod.quiz.map(q => ({ ...q, options: q.options ? [...q.options] : undefined }))
+    ? mod.quiz.map(q => ({ ...q, ...(q.options ? { options: [...q.options] } : {}) }))
     : [];
 
   const overlay = createOverlay(`

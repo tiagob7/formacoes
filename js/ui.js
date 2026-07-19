@@ -2,6 +2,7 @@ import { icon }         from './icons.js';
 import { getState, setState } from './state.js';
 import { navigate }     from './router.js';
 import { logoutEmployee } from './firebase-service.js';
+import { clearDismissedNotifications } from './notification-service.js';
 import { getCachedCourses } from './course-service.js';
 import { notificationCount } from './notification-service.js';
 
@@ -197,6 +198,8 @@ export function wireShell() {
   if (btn) {
     btn.addEventListener('click', async () => {
       setMobileNav(false);
+      const { user } = getState();
+      if (user?.email) clearDismissedNotifications(user.email);
       setState({ user: null });
       await logoutEmployee();
       navigate('/login');

@@ -41,13 +41,13 @@ export function renderLogin(container) {
 
           <label class="form-label" for="login-email">Email</label>
           <input id="login-email" type="email" class="form-input"
-            placeholder="ex.: joao@algartempo.pt" autocomplete="email" />
+            placeholder="ex.: nome@empresa.pt" autocomplete="email" aria-describedby="login-error" />
 
           <label class="form-label" for="login-password">Palavra-passe</label>
           <input id="login-password" type="password" class="form-input"
-            placeholder="••••••••" autocomplete="current-password" />
+            placeholder="••••••••" autocomplete="current-password" aria-describedby="login-error" />
 
-          <div id="login-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
+          <div id="login-error" class="form-error" role="alert" aria-live="polite"></div>
 
           <button type="submit" class="btn-primary" id="login-btn">
             Entrar
@@ -75,6 +75,10 @@ export function renderLogin(container) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    // Reset aria-invalid on new attempt
+    emailEl.setAttribute('aria-invalid', 'false');
+    passEl.setAttribute('aria-invalid', 'false');
+
     const email    = emailEl.value.trim();
     const password = passEl.value;
 
@@ -86,7 +90,7 @@ export function renderLogin(container) {
     setLoading(true);
     try {
       const result = await loginEmployee(email, password);
-      setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid }, progress: result.progress });
+      setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid, departamento: result.departamento || '' }, progress: result.progress });
       navigate('/dashboard');
     } catch (err) {
       console.warn('[Login] Falha:', err.code || err.message);
@@ -100,7 +104,8 @@ export function renderLogin(container) {
 
   function showError(msg) {
     errEl.textContent = msg;
-    errEl.style.display = 'block';
+    emailEl.setAttribute('aria-invalid', 'true');
+    passEl.setAttribute('aria-invalid', 'true');
   }
 
   function setLoading(on) {
@@ -109,8 +114,16 @@ export function renderLogin(container) {
     arrow.style.display   = on ? 'none'  : 'inline-block';
   }
 
-  emailEl.addEventListener('input',    () => { errEl.style.display = 'none'; });
-  passEl.addEventListener('input',     () => { errEl.style.display = 'none'; });
+  emailEl.addEventListener('input',    () => {
+    errEl.textContent = '';
+    emailEl.setAttribute('aria-invalid', 'false');
+    passEl.setAttribute('aria-invalid', 'false');
+  });
+  passEl.addEventListener('input',     () => {
+    errEl.textContent = '';
+    emailEl.setAttribute('aria-invalid', 'false');
+    passEl.setAttribute('aria-invalid', 'false');
+  });
   document.getElementById('show-register').addEventListener('click', () => {
     const rightEl = document.querySelector('.login-right');
     showRegisterStep1(rightEl);
@@ -135,12 +148,12 @@ function showRegisterStep1(rightEl) {
       </div>
 
       <label class="form-label" for="reg-nif">NIF (Número de Contribuinte)</label>
-      <input id="reg-nif" type="text" class="form-input" placeholder="ex.: 123456789" maxlength="9" autocomplete="off" />
+      <input id="reg-nif" type="text" class="form-input" placeholder="ex.: 123456789" maxlength="9" autocomplete="off" aria-describedby="reg1-error" />
 
       <label class="form-label" for="reg-email">Email</label>
-      <input id="reg-email" type="email" class="form-input" placeholder="ex.: nome@email.pt" autocomplete="email" />
+      <input id="reg-email" type="email" class="form-input" placeholder="ex.: nome@email.pt" autocomplete="email" aria-describedby="reg1-error" />
 
-      <div id="reg1-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
+      <div id="reg1-error" class="form-error" role="alert" aria-live="polite"></div>
 
       <button type="submit" class="btn-primary" id="reg1-btn">
         Verificar identidade
@@ -165,17 +178,28 @@ function showRegisterStep1(rightEl) {
     renderLogin(rightEl.closest('.login-page').parentElement);
   });
 
-  nifEl.addEventListener('input', () => { errEl.style.display = 'none'; });
-  emailEl.addEventListener('input', () => { errEl.style.display = 'none'; });
+  nifEl.addEventListener('input', () => {
+    errEl.textContent = '';
+    nifEl.setAttribute('aria-invalid', 'false');
+    emailEl.setAttribute('aria-invalid', 'false');
+  });
+  emailEl.addEventListener('input', () => {
+    errEl.textContent = '';
+    nifEl.setAttribute('aria-invalid', 'false');
+    emailEl.setAttribute('aria-invalid', 'false');
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    nifEl.setAttribute('aria-invalid', 'false');
+    emailEl.setAttribute('aria-invalid', 'false');
     const nif   = nifEl.value.trim();
     const email = emailEl.value.trim().toLowerCase();
 
     if (!nif || !email) {
       errEl.textContent = 'Preencha todos os campos para continuar.';
-      errEl.style.display = 'block';
+      nifEl.setAttribute('aria-invalid', 'true');
+      emailEl.setAttribute('aria-invalid', 'true');
       return;
     }
 
@@ -190,7 +214,8 @@ function showRegisterStep1(rightEl) {
           ? 'Esta conta já foi ativada. Utilize o login normal ou contacte o administrador.'
           : 'Os dados introduzidos não correspondem a nenhum registo autorizado.';
         errEl.textContent = msg;
-        errEl.style.display = 'block';
+        nifEl.setAttribute('aria-invalid', 'true');
+        emailEl.setAttribute('aria-invalid', 'true');
         btn.disabled = false;
         arrow.style.display   = 'inline-block';
         spinner.style.display = 'none';
@@ -199,7 +224,8 @@ function showRegisterStep1(rightEl) {
       showRegisterStep2(rightEl, email, result.data);
     } catch {
       errEl.textContent = 'Erro ao verificar identidade. Tente novamente.';
-      errEl.style.display = 'block';
+      nifEl.setAttribute('aria-invalid', 'true');
+      emailEl.setAttribute('aria-invalid', 'true');
       btn.disabled = false;
       arrow.style.display   = 'inline-block';
       spinner.style.display = 'none';
@@ -232,7 +258,7 @@ function showRegisterStep2(rightEl, email, whitelistData) {
       <label class="form-label" for="reg-confirm">Confirmar palavra-passe</label>
       <input id="reg-confirm" type="password" class="form-input" placeholder="Repita a palavra-passe" autocomplete="new-password" aria-describedby="reg2-error" />
 
-      <div id="reg2-error" class="form-error" role="alert" aria-live="polite" style="display:none"></div>
+      <div id="reg2-error" class="form-error" role="alert" aria-live="polite"></div>
 
       <button type="submit" class="btn-primary" id="reg2-btn">
         Criar conta e entrar
@@ -257,22 +283,34 @@ function showRegisterStep2(rightEl, email, whitelistData) {
     showRegisterStep1(rightEl);
   });
 
-  passEl.addEventListener('input',    () => { errEl.style.display = 'none'; });
-  confirmEl.addEventListener('input', () => { errEl.style.display = 'none'; });
+  passEl.addEventListener('input',    () => {
+    errEl.textContent = '';
+    passEl.setAttribute('aria-invalid', 'false');
+    confirmEl.setAttribute('aria-invalid', 'false');
+  });
+  confirmEl.addEventListener('input', () => {
+    errEl.textContent = '';
+    passEl.setAttribute('aria-invalid', 'false');
+    confirmEl.setAttribute('aria-invalid', 'false');
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    passEl.setAttribute('aria-invalid', 'false');
+    confirmEl.setAttribute('aria-invalid', 'false');
     const password = passEl.value;
     const confirm  = confirmEl.value;
 
     if (password.length < 8) {
       errEl.textContent = 'A palavra-passe deve ter pelo menos 8 caracteres.';
-      errEl.style.display = 'block';
+      passEl.setAttribute('aria-invalid', 'true');
+      confirmEl.setAttribute('aria-invalid', 'true');
       return;
     }
     if (password !== confirm) {
       errEl.textContent = 'As palavras-passe não coincidem.';
-      errEl.style.display = 'block';
+      passEl.setAttribute('aria-invalid', 'true');
+      confirmEl.setAttribute('aria-invalid', 'true');
       return;
     }
 
@@ -294,7 +332,7 @@ function showRegisterStep2(rightEl, email, whitelistData) {
 
       // Definir state com os dados que já temos (evita uma leitura extra ao Firestore)
       setState({
-        user: { email: normalizedEmail, name: whitelistData.nome || '', role: 'colaborador', uid },
+        user: { email: normalizedEmail, name: whitelistData.nome || '', role: 'colaborador', uid, departamento: whitelistData.departamento || '' },
         progress: {},
       });
 
@@ -305,7 +343,8 @@ function showRegisterStep2(rightEl, email, whitelistData) {
         ? 'Erro ao concluir o registo. Contacte o administrador se o problema persistir.'
         : 'Erro ao criar conta. Verifique a ligação e tente novamente.';
       errEl.textContent = msg;
-      errEl.style.display = 'block';
+      passEl.setAttribute('aria-invalid', 'true');
+      confirmEl.setAttribute('aria-invalid', 'true');
       btn.disabled = false;
       arrow.style.display   = 'inline-block';
       spinner.style.display = 'none';

@@ -27,7 +27,7 @@ function normalizeCourse(course, index = 0) {
     targetRoles,
     targetDepartments,
     order: Number.isFinite(Number(course.order)) ? Number(course.order) : index,
-    status: course.status || 'published',
+    status: course.status || 'draft',
     modules: modules.map((mod, modIndex) => ({
       id: mod.id,
       title: mod.title || `Modulo ${modIndex + 1}`,

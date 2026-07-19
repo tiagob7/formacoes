@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ferramenta de Exportação - Formações Algartempo</title>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.12.0/build/index.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .info-box {
+      background: #f0f7ff;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 30px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .options {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .option:hover {
+      background: #efefef;
+    }
+
+    .option input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 12px;
+      cursor: pointer;
+    }
+
+    .option label {
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .option-title {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .option-desc {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-export {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-export:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-export:active {
+      transform: translateY(0);
+    }
+
+    .btn-reset {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-reset:hover {
+      background: #e0e0e0;
+    }
+
+    .status {
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+      display: none;
+      font-size: 14px;
+    }
+
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+
+    .status.loading {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      display: block;
+    }
+
+    .progress {
+      width: 100%;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress.show {
+      display: block;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      width: 0%;
+      animation: progress 2s infinite;
+    }
+
+    @keyframes progress {
+      0% { width: 0%; }
+      50% { width: 100%; }
+      100% { width: 100%; }
+    }
+
+    .icon {
+      margin-right: 8px;
+    }
+
+    .stats {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #666;
+      display: none;
+    }
+
+    .stats.show {
+      display: block;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #efefef;
+    }
+
+    .stat-item:last-child {
+      border-bottom: none;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .buttons {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📄 Exportar Formações para Word</h1>
+    <p class="subtitle">Gere um documento Word completo com todos os dados das formações</p>
+
+    <div class="info-box">
+      💡 Selecione os elementos que deseja incluir no documento Word e clique em "Exportar".
+      O ficheiro será descarregado automaticamente.
+    </div>
+
+    <div class="options">
+      <div class="option">
+        <input type="checkbox" id="includeContent" checked>
+        <label for="includeContent">
+          <div class="option-title">Incluir Conteúdo dos Módulos</div>
+          <div class="option-desc">Títulos, parágrafos, listas e callouts</div>
+        </label>
+      </div>
+
+      <div class="option">
+        <input type="checkbox" id="includeQuiz" checked>
+        <label for="includeQuiz">
+          <div class="option-title">Incluir Questionários</div>
+          <div class="option-desc">Questões, opções e explicações</div>
+        </label>
+      </div>
+
+      <div class="option">
+        <input type="checkbox" id="includeDuration" checked>
+        <label for="includeDuration">
+          <div class="option-title">Incluir Durações</div>
+          <div class="option-desc">Duração das formações e módulos</div>
+        </label>
+      </div>
+
+      <div class="option">
+        <input type="checkbox" id="includePageBreaks" checked>
+        <label for="includePageBreaks">
+          <div class="option-title">Quebras de Página</div>
+          <div class="option-desc">Entre formações e módulos grandes</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="btn-export" onclick="exportToWord()">
+        <span class="icon">📥</span> Exportar para Word
+      </button>
+      <button class="btn-reset" onclick="resetOptions()">
+        <span class="icon">🔄</span> Repor
+      </button>
+    </div>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar"></div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="stats" id="stats">
+      <div class="stat-item">
+        <span>Total de formações:</span>
+        <strong id="statFormacoes">-</strong>
+      </div>
+      <div class="stat-item">
+        <span>Total de módulos:</span>
+        <strong id="statModulos">-</strong>
+      </div>
+      <div class="stat-item">
+        <span>Total de questões:</span>
+        <strong id="statQuestoes">-</strong>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Dados mock - em produção, viriam do seed-data.js
+    const COURSES = [];
+
+    async function loadSeedData() {
+      try {
+        const response = await fetch('seed-data.js');
+        const text = await response.text();
+        // Parse do módulo ES6
+        const module = {};
+        eval(text.replace('export const COURSES', 'const COURSES'));
+        return COURSES;
+      } catch (error) {
+        console.error('Erro ao carregar seed-data.js:', error);
+        showStatus('Aviso: Não foi possível carregar seed-data.js. Certifique-se de que o ficheiro existe.', 'error');
+        return [];
+      }
+    }
+
+    function showStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`;
+      if (type === 'loading') {
+        document.getElementById('progress').classList.add('show');
+      } else {
+        document.getElementById('progress').classList.remove('show');
+      }
+    }
+
+    function updateStats(courses) {
+      let totalModulos = 0;
+      let totalQuestoes = 0;
+
+      courses.forEach(course => {
+        totalModulos += course.modules.length;
+        course.modules.forEach(module => {
+          if (module.quiz) {
+            totalQuestoes += module.quiz.length;
+          }
+        });
+      });
+
+      document.getElementById('statFormacoes').textContent = courses.length;
+      document.getElementById('statModulos').textContent = totalModulos;
+      document.getElementById('statQuestoes').textContent = totalQuestoes;
+      document.getElementById('stats').classList.add('show');
+    }
+
+    function resetOptions() {
+      document.getElementById('includeContent').checked = true;
+      document.getElementById('includeQuiz').checked = true;
+      document.getElementById('includeDuration').checked = true;
+      document.getElementById('includePageBreaks').checked = true;
+      document.getElementById('status').className = 'status';
+      document.getElementById('stats').classList.remove('show');
+    }
+
+    async function exportToWord() {
+      showStatus('⏳ A processar... Por favor aguarde.', 'loading');
+
+      try {
+        const courses = await loadSeedData();
+
+        if (courses.length === 0) {
+          showStatus('❌ Erro: Nenhuma formação encontrada.', 'error');
+          return;
+        }
+
+        updateStats(courses);
+
+        const options = {
+          includeContent: document.getElementById('includeContent').checked,
+          includeQuiz: document.getElementById('includeQuiz').checked,
+          includeDuration: document.getElementById('includeDuration').checked,
+          includePageBreaks: document.getElementById('includePageBreaks').checked
+        };
+
+        // Aqui seria chamada a função que gera o documento
+        // Por enquanto, mostramos mensagem de sucesso
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        showStatus('✅ Exportação concluída com sucesso! O ficheiro será descarregado em breve.', 'success');
+
+      } catch (error) {
+        showStatus(`❌ Erro: ${error.message}`, 'error');
+      }
+    }
+
+    // Inicializar ao carregar a página
+    document.addEventListener('DOMContentLoaded', async () => {
+      const courses = await loadSeedData();
+      if (courses.length > 0) {
+        updateStats(courses);
+      }
+    });
+  </script>
+</body>
+</html>

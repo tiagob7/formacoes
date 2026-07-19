@@ -20,6 +20,11 @@ import { setState, getState } from './state.js';
 
 const handlers = {};
 let _routeVersion = 0;
+let _notFoundHandler = null;
+
+export function onNotFound(fn) {
+  _notFoundHandler = fn;
+}
 
 export function route(pattern, fn) {
   handlers[pattern] = fn;
@@ -58,6 +63,7 @@ export function initRouter() {
       if (params !== null) { fn(params); return; }
     }
     // fallback — no pattern matched
+    if (_notFoundHandler) { _notFoundHandler(); return; }
     const { user } = getState();
     navigate(user ? '/dashboard' : '/login');
   };

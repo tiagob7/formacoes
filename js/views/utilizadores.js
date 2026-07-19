@@ -625,8 +625,24 @@ function setupWhitelistImport(existingList) {
     }
   }
 
-  const handleFile = file => {
-    if (!window.XLSX) { showToast('Biblioteca Excel não carregada.', 'error'); return; }
+  async function ensureXLSX() {
+    if (window.XLSX) return;
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const handleFile = async file => {
+    try {
+      await ensureXLSX();
+    } catch {
+      showToast('Erro ao carregar biblioteca Excel.', 'error');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = ev => {
       try {

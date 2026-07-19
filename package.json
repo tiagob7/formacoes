@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Ferramenta para exportar dados de formações para documentos Word",
   "type": "module",
-  "main": "export-to-word.js",
+  "main": "tools/export-to-word.js",
   "scripts": {
-    "export": "node export-to-word.js",
-    "export:word": "node export-to-word.js"
+    "export": "node tools/export-to-word.js",
+    "export:word": "node tools/export-to-word.js"
   },
   "keywords": [
     "export",
