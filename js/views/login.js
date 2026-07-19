@@ -41,7 +41,7 @@ export function renderLogin(container) {
 
           <label class="form-label" for="login-email">Email</label>
           <input id="login-email" type="email" class="form-input"
-            placeholder="ex.: joao@algartempo.pt" autocomplete="email" aria-describedby="login-error" />
+            placeholder="ex.: nome@empresa.pt" autocomplete="email" aria-describedby="login-error" />
 
           <label class="form-label" for="login-password">Palavra-passe</label>
           <input id="login-password" type="password" class="form-input"
@@ -90,7 +90,7 @@ export function renderLogin(container) {
     setLoading(true);
     try {
       const result = await loginEmployee(email, password);
-      setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid }, progress: result.progress });
+      setState({ user: { email: result.email, name: result.name, role: result.role, uid: result.uid, departamento: result.departamento || '' }, progress: result.progress });
       navigate('/dashboard');
     } catch (err) {
       console.warn('[Login] Falha:', err.code || err.message);
@@ -332,7 +332,7 @@ function showRegisterStep2(rightEl, email, whitelistData) {
 
       // Definir state com os dados que já temos (evita uma leitura extra ao Firestore)
       setState({
-        user: { email: normalizedEmail, name: whitelistData.nome || '', role: 'colaborador', uid },
+        user: { email: normalizedEmail, name: whitelistData.nome || '', role: 'colaborador', uid, departamento: whitelistData.departamento || '' },
         progress: {},
       });
 

@@ -1,109 +1,96 @@
 import { icon }      from '../icons.js';
 import { getState }  from '../state.js';
-import { showToast } from '../ui.js';
-import { COURSES }   from '../data.js';
+import { showToast, confirmDialog } from '../ui.js';
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 import {
   getEmployees, createEmployee, updateEmployee, deleteEmployee,
-  importWhitelist, getWhitelist, deleteWhitelistEntry,
-  getAllProgress,
+  getDepartments,
+  logAuditEvent,
 } from '../firebase-service.js';
 
-const ROLES = { administrador: 'Administrador', gestor_conteudos: 'Gestor Conteúdos', colaborador: 'Colaborador' };
-const ROLE_COLOR = { administrador: 'var(--red)', gestor_conteudos: 'var(--amber)', colaborador: 'var(--cyan-2)' };
+const ROLES = { administrador: 'Administrador', gestor_conteudos: 'Gestor de conteúdos', gestor_colaboradores: 'Gestor de Colaboradores' };
+const ROLE_COLOR = { administrador: 'var(--red)', gestor_conteudos: 'var(--amber)', gestor_colaboradores: 'var(--green)' };
+
+const ADMIN_ROLES = ['administrador', 'gestor_conteudos', 'gestor_colaboradores'];
 
 export async function renderAdmin(container) {
   const { user } = getState();
   if (user?.role !== 'administrador') {
-    container.innerHTML = '<p style="padding:2rem">Acesso negado.</p>'; return;
+    container.innerHTML = '<p class="access-denied">Acesso negado.</p>'; return;
   }
+
+  let employees = [];
+  try { employees = await getEmployees(); } catch (e) { console.warn(e); }
+  const managers = employees
+    .filter(e => ADMIN_ROLES.includes(e.role))
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
 
   container.innerHTML = `
     <div class="topbar">
       <div>
         <h1 class="topbar-title">Administração</h1>
-        <div class="topbar-sub">Gestão de utilizadores, whitelist e monitorização</div>
+        <div class="topbar-sub">Gestão de administradores e gestores</div>
       </div>
     </div>
-    <div style="padding:0 2rem 2rem">
-      <div class="admin-tabs">
-        <button class="admin-tab active" data-tab="users">${icon('user',15)} Utilizadores</button>
-        <button class="admin-tab" data-tab="whitelist">${icon('check',15)} Whitelist</button>
-        <button class="admin-tab" data-tab="progress">${icon('chart',15)} Progresso Global</button>
-      </div>
+    <div class="admin-body">
       <div id="admin-content"></div>
     </div>`;
 
-  document.querySelectorAll('.admin-tab').forEach(btn =>
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      loadTab(btn.dataset.tab);
-    })
-  );
-
-  loadTab('users');
+  renderManagers(managers);
 }
 
-function loadTab(tab) {
+function renderManagers(managers) {
   const content = document.getElementById('admin-content');
-  content.innerHTML = `<div class="admin-loading">${icon('spinner',18)} A carregar...</div>`;
-  if (tab === 'users')    renderUsers(content);
-  if (tab === 'whitelist') renderWhitelist(content);
-  if (tab === 'progress') renderProgress(content);
-}
+  if (!content) return;
 
-/* ================================================================== */
-/* TAB: UTILIZADORES                                                    */
-/* ================================================================== */
-
-async function renderUsers(container) {
-  let employees = [];
-  try { employees = await getEmployees(); } catch (e) { console.warn(e); }
-  employees.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-
-  container.innerHTML = `
+  content.innerHTML = `
     <div class="admin-toolbar">
-      <input id="search-users" class="form-input" style="max-width:260px"
+      <input id="search-managers" class="form-input" style="max-width:260px"
              placeholder="Pesquisar por nome ou email…" />
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <span style="font-size:13px;color:var(--ink-3);align-self:center">${employees.length} utilizadores</span>
-        <button class="btn-primary" id="btn-new-user">${icon('plus',14)} Novo utilizador</button>
+      <div class="toolbar-right">
+        <span class="admin-count-badge">${managers.length} utilizadores</span>
+        <button class="btn-primary" id="btn-new-manager">${icon('plus',14)} Novo utilizador</button>
       </div>
     </div>
     <div class="admin-table-wrap">
       <table class="admin-table">
         <thead><tr>
-          <th>Nome</th><th>Email</th><th>Role</th><th>Estado</th><th></th>
+          <th>Nome</th><th>Email</th><th>Departamento</th><th>Role</th><th>Estado</th><th></th>
         </tr></thead>
-        <tbody id="users-tbody"></tbody>
+        <tbody id="managers-tbody"></tbody>
       </table>
     </div>`;
 
-  renderUsersRows(employees, employees);
+  renderManagerRows(managers, managers);
 
-  document.getElementById('search-users').addEventListener('input', e => {
+  document.getElementById('search-managers').addEventListener('input', e => {
     const q = e.target.value.toLowerCase();
-    renderUsersRows(employees.filter(emp =>
-      (emp.nome || '').toLowerCase().includes(q) || emp.id.toLowerCase().includes(q)
-    ), employees);
+    renderManagerRows(managers.filter(emp =>
+      (emp.nome || '').toLowerCase().includes(q)
+      || emp.id.toLowerCase().includes(q)
+    ), managers);
   });
 
-  document.getElementById('btn-new-user').addEventListener('click', () =>
-    openUserModal(null, employees)
+  document.getElementById('btn-new-manager').addEventListener('click', () =>
+    openManagerModal(null, managers)
   );
 }
 
-function renderUsersRows(list, all) {
-  const tbody = document.getElementById('users-tbody');
+function renderManagerRows(list, all) {
+  const tbody = document.getElementById('managers-tbody');
   if (!tbody) return;
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="table-empty">Nenhum utilizador encontrado</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Nenhum utilizador encontrado</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(emp => `
     <tr>
       <td><strong>${emp.nome || '—'}</strong></td>
-      <td style="color:var(--ink-3);font-size:13px">${emp.id}</td>
+      <td class="table-cell-meta">${emp.id}</td>
+      <td class="table-cell-meta">${emp.departamento || '—'}</td>
       <td>
         <span class="role-badge"
               style="background:${ROLE_COLOR[emp.role]}18;color:${ROLE_COLOR[emp.role]};border:1px solid ${ROLE_COLOR[emp.role]}30">
@@ -115,61 +102,97 @@ function renderUsersRows(list, all) {
         ${emp.ativo ? 'Ativo' : 'Inativo'}
       </td>
       <td class="table-actions">
-        <button class="btn-icon" data-act="edit"   data-id="${emp.id}" title="Editar">${icon('edit',14)}</button>
+        <button class="btn-icon" data-act="edit" data-id="${emp.id}" title="Editar" aria-label="Editar utilizador">${icon('edit',14)}</button>
         <button class="btn-icon ${emp.ativo ? 'warn' : 'ok'}" data-act="toggle" data-id="${emp.id}" data-ativo="${emp.ativo}"
-                title="${emp.ativo ? 'Desativar' : 'Ativar'}">
+                title="${emp.ativo ? 'Desativar' : 'Ativar'}" aria-label="${emp.ativo ? 'Desativar' : 'Ativar'}">
           ${emp.ativo ? icon('x',14) : icon('check',14)}
         </button>
-        <button class="btn-icon danger" data-act="delete" data-id="${emp.id}" title="Eliminar">${icon('trash',14)}</button>
+        <button class="btn-icon danger" data-act="delete" data-id="${emp.id}" title="Eliminar" aria-label="Eliminar">${icon('trash',14)}</button>
       </td>
     </tr>`).join('');
 
   tbody.querySelectorAll('[data-act="edit"]').forEach(btn =>
-    btn.addEventListener('click', () => openUserModal(all.find(e => e.id === btn.dataset.id), all))
+    btn.addEventListener('click', () => openManagerModal(all.find(e => e.id === btn.dataset.id), all))
   );
   tbody.querySelectorAll('[data-act="toggle"]').forEach(btn =>
-    btn.addEventListener('click', () => toggleUser(btn.dataset.id, btn.dataset.ativo === 'true'))
+    btn.addEventListener('click', () => toggleManager(btn.dataset.id, btn.dataset.ativo === 'true', all))
   );
   tbody.querySelectorAll('[data-act="delete"]').forEach(btn =>
-    btn.addEventListener('click', () => confirmDeleteUser(btn.dataset.id))
+    btn.addEventListener('click', () => confirmDeleteManager(btn.dataset.id, all))
   );
 }
 
-async function toggleUser(email, ativo) {
+async function toggleManager(email, ativo, all) {
+  const { user } = getState();
   try {
     await updateEmployee(email, { ativo: !ativo });
+    await logAuditEvent('toggle_user', user?.email, user?.role, email, !ativo ? 'Ativado' : 'Desativado');
     showToast(`Utilizador ${!ativo ? 'ativado' : 'desativado'}.`, 'success');
-    loadTab('users');
+    renderManagerRows(all.map(e => e.id === email ? { ...e, ativo: !ativo } : e), all.map(e => e.id === email ? { ...e, ativo: !ativo } : e));
   } catch { showToast('Erro ao atualizar.', 'error'); }
 }
 
-async function confirmDeleteUser(email) {
-  if (!confirm(`Eliminar permanentemente o utilizador "${email}"?\nEsta ação não pode ser desfeita.`)) return;
+async function confirmDeleteManager(email, all) {
+  const ok = await confirmDialog({
+    title: 'Eliminar utilizador',
+    message: `Tem a certeza que pretende eliminar permanentemente o utilizador <strong>${email}</strong>?<br>Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await deleteEmployee(email);
     showToast('Utilizador eliminado.', 'success');
-    loadTab('users');
+    const updated = all.filter(e => e.id !== email);
+    renderManagers(updated);
   } catch (e) { showToast('Erro ao eliminar: ' + e.message, 'error'); }
 }
 
-function openUserModal(emp, all) {
+async function openManagerModal(emp, all) {
   const isEdit = !!emp;
+  let departments = [];
+  try { departments = await getDepartments(); } catch { /* sem deps → campo texto */ }
+
+  const deptOptions = departments.length
+    ? `<select id="u-departamento" class="form-input">
+         <option value="">— Sem departamento —</option>
+         ${departments.map(d => `<option value="${escHtml(d.nome)}" ${emp?.departamento === d.nome ? 'selected' : ''}>${escHtml(d.nome)}</option>`).join('')}
+         <option value="__outro__">Outro…</option>
+       </select>
+       <input id="u-departamento-outro" class="form-input" placeholder="Escreva o departamento"
+              style="margin-top:.5rem;display:none" />`
+    : `<input id="u-departamento" class="form-input" value="${escHtml(emp?.departamento || '')}" placeholder="ex.: RH" />`;
+
   const overlay = createOverlay(`
     <div class="modal">
       <div class="modal-header">
         <h3>${isEdit ? 'Editar utilizador' : 'Novo utilizador'}</h3>
-        <button class="btn-icon" id="modal-close">${icon('x',16)}</button>
+        <button class="btn-icon" id="modal-close" aria-label="Fechar janela">${icon('x',16)}</button>
       </div>
       <div class="modal-body">
         <label class="form-label">Nome completo</label>
-        <input id="u-nome"  class="form-input" value="${emp?.nome || ''}" placeholder="ex.: Maria Silva" />
+        <input id="u-nome"  class="form-input" value="${escHtml(emp?.nome || '')}" placeholder="ex.: Maria Silva" />
 
         <label class="form-label" style="margin-top:1rem">Email</label>
         <input id="u-email" class="form-input" type="email" value="${emp?.id || ''}"
                placeholder="email@empresa.pt" ${isEdit ? 'disabled style="opacity:.6"' : ''} />
 
+        <label class="form-label" style="margin-top:1rem">Departamento</label>
+        ${deptOptions}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1rem">
+          <div>
+            <label class="form-label">Nº Colaborador</label>
+            <input id="u-nrcol" class="form-input" value="${escHtml(emp?.nrCol || '')}" placeholder="ex.: 1042" />
+          </div>
+          <div>
+            <label class="form-label">NIF</label>
+            <input id="u-nif" class="form-input" value="${escHtml(emp?.nif || '')}" placeholder="ex.: 123456789" maxlength="9" />
+          </div>
+        </div>
+
         ${!isEdit ? `
-        <label class="form-label" style="margin-top:1rem">Password</label>
+        <label class="form-label" style="margin-top:1rem">Palavra-passe</label>
         <input id="u-password" class="form-input" type="password"
                placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
         ` : ''}
@@ -198,38 +221,50 @@ function openUserModal(emp, all) {
       </div>
     </div>`);
 
+  const deptSelect = document.getElementById('u-departamento');
+  const deptOutro  = document.getElementById('u-departamento-outro');
+  if (deptSelect?.tagName === 'SELECT') {
+    deptSelect.addEventListener('change', () => {
+      if (deptOutro) deptOutro.style.display = deptSelect.value === '__outro__' ? 'block' : 'none';
+    });
+  }
+
   document.getElementById('modal-save').addEventListener('click', async () => {
     const nome     = document.getElementById('u-nome').value.trim();
     const email    = (document.getElementById('u-email').value || emp?.id || '').trim().toLowerCase();
+    const dSel     = document.getElementById('u-departamento');
+    const dOutro   = document.getElementById('u-departamento-outro');
+    const departamento = dSel?.tagName === 'SELECT'
+      ? (dSel.value === '__outro__' ? (dOutro?.value.trim() || '') : dSel.value)
+      : (dSel?.value.trim() || '');
+    const nrCol    = document.getElementById('u-nrcol').value.trim();
+    const nif      = document.getElementById('u-nif').value.trim();
     const password = !isEdit ? document.getElementById('u-password').value : null;
     const role     = document.getElementById('u-role').value;
     const ativo    = isEdit ? document.getElementById('u-ativo').value === 'true' : true;
     const errEl    = document.getElementById('u-error');
 
-    if (!nome || !email) {
-      errEl.textContent = 'Preencha nome e email.'; errEl.style.display = 'block'; return;
-    }
-    if (!isEdit && !password) {
-      errEl.textContent = 'Defina uma password.'; errEl.style.display = 'block'; return;
-    }
-    if (!isEdit && password.length < 6) {
-      errEl.textContent = 'A password deve ter pelo menos 6 caracteres.'; errEl.style.display = 'block'; return;
-    }
-    if (!isEdit && all.find(e => e.id === email)) {
-      errEl.textContent = 'Este email já existe.'; errEl.style.display = 'block'; return;
-    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!nome) { errEl.textContent = 'Preencha o nome completo.'; errEl.style.display = 'block'; return; }
+    if (!email || !emailRe.test(email)) { errEl.textContent = 'Introduza um email válido.'; errEl.style.display = 'block'; return; }
+    if (!isEdit && !password) { errEl.textContent = 'Defina uma palavra-passe.'; errEl.style.display = 'block'; return; }
+    if (!isEdit && password.length < 6) { errEl.textContent = 'A palavra-passe deve ter pelo menos 6 caracteres.'; errEl.style.display = 'block'; return; }
+    if (!isEdit && all.find(e => e.id === email)) { errEl.textContent = 'Este email já existe.'; errEl.style.display = 'block'; return; }
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
+    const { user: adminUser } = getState();
     try {
       if (isEdit) {
-        await updateEmployee(email, { nome, role, ativo });
+        await updateEmployee(email, { nome, role, departamento, nrCol, nif, ativo }, adminUser?.email || '');
+        await logAuditEvent('edit_user', adminUser?.email, adminUser?.role, email, `role: ${role}, ativo: ${ativo}`);
       } else {
-        await createEmployee(email, password, nome, role);
+        await createEmployee(email, password, nome, role, departamento, nrCol, nif, adminUser?.email || '');
+        await logAuditEvent('create_user', adminUser?.email, adminUser?.role, email, `role: ${role}`);
       }
       showToast(`Utilizador ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();
-      loadTab('users');
+      await renderAdmin(document.getElementById('main'));
     } catch (e) {
       errEl.textContent = 'Erro: ' + e.message;
       errEl.style.display = 'block';
@@ -237,258 +272,6 @@ function openUserModal(emp, all) {
     }
   });
 }
-
-/* ================================================================== */
-/* TAB: WHITELIST                                                       */
-/* ================================================================== */
-
-async function renderWhitelist(container) {
-  let list = [];
-  try { list = await getWhitelist(); } catch (e) { console.warn(e); }
-  list.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-
-  container.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start">
-
-      <!-- Tabela -->
-      <div>
-        <div class="admin-toolbar">
-          <input id="search-wl" class="form-input" style="max-width:240px"
-                 placeholder="Pesquisar…" />
-          <span style="font-size:13px;color:var(--ink-3);margin-left:auto">${list.length} entradas</span>
-        </div>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead><tr>
-              <th>Nome</th><th>Email</th><th>Departamento</th><th>Estado</th><th></th>
-            </tr></thead>
-            <tbody id="wl-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Painel de importação -->
-      <div class="wl-import-panel">
-        <div class="wl-import-header">
-          ${icon('upload',16,'var(--cyan-2)')}
-          <strong>Importar Excel / CSV</strong>
-        </div>
-        <p class="wl-import-desc">
-          Colunas esperadas: <code>email</code>, <code>nome</code> e opcionalmente <code>departamento</code>.
-          Emails já existentes na whitelist são ignorados.
-        </p>
-        <div class="file-drop-zone" id="wl-drop-zone">
-          ${icon('upload',24,'var(--ink-3)')}
-          <span>Arraste o ficheiro ou</span>
-          <label class="btn-sm primary" style="cursor:pointer">
-            Escolher ficheiro
-            <input type="file" id="wl-file-input" accept=".xlsx,.xls,.csv" style="display:none" />
-          </label>
-        </div>
-        <div id="wl-preview" style="display:none">
-          <div id="wl-preview-info" style="font-size:13px;color:var(--ink-3);margin:.75rem 0"></div>
-          <button class="btn-primary" style="width:100%" id="wl-confirm">
-            ${icon('upload',14)} Confirmar importação
-          </button>
-        </div>
-      </div>
-
-    </div>`;
-
-  renderWhitelistRows(list, list);
-
-  document.getElementById('search-wl').addEventListener('input', e => {
-    const q = e.target.value.toLowerCase();
-    renderWhitelistRows(list.filter(r =>
-      (r.nome || '').toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
-    ), list);
-  });
-
-  setupWhitelistImport(list);
-}
-
-function renderWhitelistRows(filtered, all) {
-  const tbody = document.getElementById('wl-tbody');
-  if (!tbody) return;
-  if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="table-empty">Nenhuma entrada encontrada</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = filtered.map(entry => `
-    <tr>
-      <td><strong>${entry.nome || '—'}</strong></td>
-      <td style="font-size:13px;color:var(--ink-3)">${entry.id}</td>
-      <td style="font-size:13px;color:var(--ink-3)">${entry.departamento || '—'}</td>
-      <td>
-        ${entry.registado
-          ? `<span style="color:var(--green);font-size:13px">${icon('check',13,'var(--green)')} Registado</span>`
-          : `<span style="color:var(--ink-3);font-size:13px">Pendente</span>`}
-      </td>
-      <td class="table-actions">
-        <button class="btn-icon danger" data-act="del-wl" data-id="${entry.id}" title="Remover">${icon('trash',14)}</button>
-      </td>
-    </tr>`).join('');
-
-  tbody.querySelectorAll('[data-act="del-wl"]').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      if (!confirm(`Remover "${btn.dataset.id}" da whitelist?`)) return;
-      try {
-        await deleteWhitelistEntry(btn.dataset.id);
-        showToast('Entrada removida.', 'success');
-        loadTab('whitelist');
-      } catch { showToast('Erro ao remover.', 'error'); }
-    })
-  );
-}
-
-function setupWhitelistImport(existingList) {
-  let parsed = [];
-
-  const handleFile = file => {
-    if (!window.XLSX) { showToast('Biblioteca Excel não carregada.', 'error'); return; }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const wb   = XLSX.read(ev.target.result, { type: 'array' });
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-        parsed = rows.map(r => ({
-          email:       (r.email || r.Email || r.EMAIL || '').trim().toLowerCase(),
-          nome:        r.nome || r.Nome || r.name || r.Name || '',
-          departamento: r.departamento || r.Departamento || r.dept || '',
-        })).filter(r => r.email);
-
-        const newCount  = parsed.filter(r => !existingList.find(e => e.id === r.email)).length;
-        const skipCount = parsed.length - newCount;
-        document.getElementById('wl-preview-info').innerHTML =
-          `<strong>${parsed.length}</strong> linhas lidas &nbsp;·&nbsp;
-           <strong style="color:var(--green)">${newCount}</strong> novas &nbsp;·&nbsp;
-           <strong style="color:var(--ink-3)">${skipCount}</strong> já existentes`;
-        document.getElementById('wl-preview').style.display = 'block';
-      } catch { showToast('Erro ao ler o ficheiro.', 'error'); }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  document.getElementById('wl-file-input').addEventListener('change', e => {
-    if (e.target.files[0]) handleFile(e.target.files[0]);
-  });
-
-  const dz = document.getElementById('wl-drop-zone');
-  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('drag-over');
-    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-  });
-
-  document.getElementById('wl-confirm')?.addEventListener('click', async () => {
-    if (!parsed.length) return;
-    const btn = document.getElementById('wl-confirm');
-    btn.disabled = true; btn.textContent = 'A importar…';
-    try {
-      const result = await importWhitelist(parsed);
-      showToast(`${result.created} adicionados, ${result.skipped} ignorados.`, 'success');
-      loadTab('whitelist');
-    } catch (e) {
-      showToast('Erro: ' + e.message, 'error');
-      btn.disabled = false;
-      btn.innerHTML = `${icon('upload',14)} Confirmar importação`;
-    }
-  });
-}
-
-/* ================================================================== */
-/* TAB: PROGRESSO GLOBAL                                                */
-/* ================================================================== */
-
-async function renderProgress(container) {
-  let employees = [], allProgress = [];
-  try {
-    employees   = await getEmployees();
-    allProgress = await getAllProgress(employees.filter(e => e.ativo));
-  } catch (e) { console.warn(e); }
-
-  if (!allProgress.length) {
-    container.innerHTML = `<p style="padding:2rem;color:var(--ink-3)">Sem dados de progresso.</p>`;
-    return;
-  }
-
-  container.innerHTML = `
-    <h3 style="margin-bottom:1rem;font-size:15px;color:var(--ink-2)">Resumo por formação</h3>
-    <div class="progress-cards" id="progress-cards"></div>
-    <h3 style="margin:2rem 0 1rem;font-size:15px;color:var(--ink-2)">Detalhe por colaborador</h3>
-    <div class="admin-table-wrap">
-      <table class="admin-table">
-        <thead><tr>
-          <th>Colaborador</th>
-          ${COURSES.map(c => `<th style="min-width:110px;white-space:nowrap">${c.title.split(' ').slice(0,3).join(' ')}</th>`).join('')}
-          <th>Global</th>
-        </tr></thead>
-        <tbody id="progress-tbody"></tbody>
-      </table>
-    </div>`;
-
-  // Cards de resumo
-  document.getElementById('progress-cards').innerHTML = COURSES.map(course => {
-    const modCount = course.modules.length;
-    let passed = 0, possible = 0;
-    allProgress.forEach(({ progress }) => {
-      const cp = progress?.[course.id] || {};
-      course.modules.forEach(m => { if (cp[m.id]?.quizPassed) passed++; });
-      possible += modCount;
-    });
-    const pct      = possible ? Math.round((passed / possible) * 100) : 0;
-    const finished = allProgress.filter(({ progress }) => {
-      const cp = progress?.[course.id] || {};
-      return course.modules.every(m => cp[m.id]?.quizPassed);
-    }).length;
-    return `
-      <div class="kpi-card" style="min-width:180px;flex:1">
-        <div class="kpi-label">${course.title}</div>
-        <div class="kpi-value">${pct}<span class="kpi-unit">%</span></div>
-        <div class="kpi-bar"><div class="kpi-bar-fill" style="width:${pct}%"></div></div>
-        <div class="kpi-sub" style="margin-top:.4rem;font-size:12px">
-          ${finished} / ${allProgress.length} concluíram
-        </div>
-      </div>`;
-  }).join('');
-
-  // Tabela por colaborador
-  document.getElementById('progress-tbody').innerHTML = allProgress
-    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-    .map(({ email, nome, progress }) => {
-      let totalDone = 0, totalMods = 0;
-      const cols = COURSES.map(course => {
-        const cp   = progress?.[course.id] || {};
-        const done = course.modules.filter(m => cp[m.id]?.quizPassed).length;
-        const tot  = course.modules.length;
-        totalDone += done; totalMods += tot;
-        const pct   = Math.round((done / tot) * 100);
-        const color = pct === 100 ? 'var(--green)' : pct > 0 ? 'var(--amber)' : 'var(--line)';
-        return `<td>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="flex:1;height:5px;background:var(--line);border-radius:3px;overflow:hidden">
-              <div style="width:${pct}%;height:100%;background:${color}"></div>
-            </div>
-            <span style="font-size:12px;color:var(--ink-3);width:28px;text-align:right">${pct}%</span>
-          </div>
-        </td>`;
-      }).join('');
-      const global = totalMods ? Math.round((totalDone / totalMods) * 100) : 0;
-      return `<tr>
-        <td>
-          <div style="font-weight:600;font-size:14px">${nome || email}</div>
-          <div style="font-size:12px;color:var(--ink-3)">${email}</div>
-        </td>
-        ${cols}
-        <td><strong>${global}%</strong></td>
-      </tr>`;
-    }).join('');
-}
-
-/* ================================================================== */
-/* Helper                                                               */
-/* ================================================================== */
 
 function createOverlay(html) {
   const el = document.createElement('div');

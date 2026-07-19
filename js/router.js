@@ -4,14 +4,27 @@
  * Routes:
  *   #/login
  *   #/dashboard
+ *   #/course/:courseId
  *   #/module/:courseId/:moduleId
  *   #/quiz/:courseId/:moduleId
  *   #/results/:courseId/:moduleId
+ *   #/certificates
+ *   #/notifications
+ *   #/administration
+ *   #/utilizadores
+ *   #/conteudos
+ *   #/auditoria
  */
 
 import { setState, getState } from './state.js';
 
 const handlers = {};
+let _routeVersion = 0;
+let _notFoundHandler = null;
+
+export function onNotFound(fn) {
+  _notFoundHandler = fn;
+}
 
 export function route(pattern, fn) {
   handlers[pattern] = fn;
@@ -19,6 +32,10 @@ export function route(pattern, fn) {
 
 export function navigate(path) {
   window.location.hash = path;
+}
+
+export function currentRouteVersion() {
+  return _routeVersion;
 }
 
 function parseHash() {
@@ -39,12 +56,14 @@ function matchPattern(pattern, segments) {
 
 export function initRouter() {
   const handle = () => {
+    _routeVersion++;
     const segments = parseHash();
     for (const [pattern, fn] of Object.entries(handlers)) {
       const params = matchPattern(pattern, segments);
       if (params !== null) { fn(params); return; }
     }
-    // fallback
+    // fallback — no pattern matched
+    if (_notFoundHandler) { _notFoundHandler(); return; }
     const { user } = getState();
     navigate(user ? '/dashboard' : '/login');
   };

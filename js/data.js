@@ -10,6 +10,7 @@ export const COURSES = [
     duration: '2h 30min',
     category: 'Conformidade',
     passingScore: 60,
+    status: 'published',
     modules: [
       {
         id: 'm1',
@@ -97,6 +98,7 @@ export const COURSES = [
     duration: '3h 00min',
     category: 'Obrigatória',
     passingScore: 60,
+    status: 'published',
     modules: [
       {
         id: 'm1',
@@ -171,6 +173,7 @@ export const COURSES = [
     duration: '2h 15min',
     category: 'Soft skills',
     passingScore: 60,
+    status: 'published',
     modules: [
       {
         id: 'm1',
