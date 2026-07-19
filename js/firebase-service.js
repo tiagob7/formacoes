@@ -551,6 +551,16 @@ export async function saveCourse(courseId, data, actor = '', actorRole = '') {
   await logAuditEvent(action, actor, actorRole, data.title || courseId, '');
 }
 
+/**
+ * Atualiza apenas o campo `duration` de uma formação.
+ * Usado para manter a duração total sincronizada com a soma dos módulos.
+ * Não regista evento de auditoria (é uma consequência automática).
+ */
+export async function updateCourseDuration(courseId, duration) {
+  init();
+  await setDoc(doc(_db, 'courses', courseId), { duration: duration || '' }, { merge: true });
+}
+
 export async function deleteCourseFromDB(courseId, title = '', actor = '', actorRole = '') {
   init();
   const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');

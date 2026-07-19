@@ -1727,7 +1727,12 @@ select:focus-visible,
   font-size: 14px;
 }
 .cm-module-num  { font-weight: 700; color: var(--ink-3); width: 20px; flex-shrink: 0; }
-.cm-module-name { flex: 1; }
+.cm-module-name { flex: 1; min-width: 0; }
+.cm-module-duration {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex-shrink: 0; font-size: 12px; color: var(--ink-3);
+  white-space: nowrap;
+}
 .cm-module-actions { display: flex; gap: 2px; }
 
 /* --- Estado vazio de tabela --- */

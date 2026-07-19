@@ -8,6 +8,50 @@ let coursesStatus = {
   error: null,
 };
 
+/**
+ * Converte uma string de duração livre em minutos.
+ * Aceita formatos como: "15min", "45 min", "1h", "2h 30min", "1h30min", "6h00m".
+ * Devolve 0 se não conseguir extrair nada.
+ */
+export function parseDurationToMinutes(str) {
+  if (typeof str !== 'string') return 0;
+  const s = str.toLowerCase();
+  const hMatch = s.match(/(\d+)\s*h/);
+  const mMatch = s.match(/(\d+)\s*m/); // apanha "min" e "m"
+  const hours = hMatch ? parseInt(hMatch[1], 10) : 0;
+  const mins  = mMatch ? parseInt(mMatch[1], 10) : 0;
+  // Caso a string seja só um número sem unidade (ex.: "45"), assume minutos.
+  if (!hMatch && !mMatch) {
+    const nMatch = s.match(/(\d+)/);
+    return nMatch ? parseInt(nMatch[1], 10) : 0;
+  }
+  return hours * 60 + mins;
+}
+
+/**
+ * Formata um total de minutos numa string legível: "2h 15min", "45min", "3h".
+ * Devolve '' para 0 ou valores inválidos.
+ */
+export function formatMinutes(total) {
+  const min = Math.max(0, Math.round(Number(total) || 0));
+  if (min <= 0) return '';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h && m) return `${h}h ${m}min`;
+  if (h)      return `${h}h`;
+  return `${m}min`;
+}
+
+/**
+ * Soma as durações de uma lista de módulos e devolve a string formatada.
+ * Devolve '' se nenhum módulo tiver duração parseável.
+ */
+export function sumModulesDuration(modules) {
+  const list = Array.isArray(modules) ? modules : [];
+  const total = list.reduce((acc, m) => acc + parseDurationToMinutes(m?.duration), 0);
+  return formatMinutes(total);
+}
+
 function normalizeCourse(course, index = 0) {
   const modules = Array.isArray(course.modules) ? course.modules : [];
   const dueDate = typeof course.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(course.dueDate)
@@ -15,11 +59,14 @@ function normalizeCourse(course, index = 0) {
     : '';
   const targetRoles = Array.isArray(course.targetRoles) ? course.targetRoles.filter(Boolean) : [];
   const targetDepartments = Array.isArray(course.targetDepartments) ? course.targetDepartments.filter(Boolean) : [];
+  // Duração da formação = soma das durações dos módulos (automática).
+  // Se nenhum módulo tiver tempo definido, usa o valor guardado como fallback.
+  const computedDuration = sumModulesDuration(modules);
   return {
     id: course.id,
     title: course.title || 'Formacao sem titulo',
     subtitle: course.subtitle || '',
-    duration: course.duration || '',
+    duration: computedDuration || course.duration || '',
     category: course.category || 'Geral',
     passingScore: Number.isFinite(Number(course.passingScore)) ? Number(course.passingScore) : 60,
     dueDate,

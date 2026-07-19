@@ -3,9 +3,9 @@ import { COVER_ICONS, COVER_PALETTES, courseCoverSVG } from '../cover-service.js
 import { getState }   from '../state.js';
 import { showToast, confirmDialog }  from '../ui.js';
 import { COURSES }    from '../data.js';
-import { clearCoursesCache } from '../course-service.js';
+import { clearCoursesCache, sumModulesDuration } from '../course-service.js';
 import { getCoverImages, uploadCoverImage, deleteCoverImage, setCoverImageUsage } from '../cover-image-service.js';
-import { getCoursesFromDB, saveCourse, deleteCourseFromDB, saveModule, deleteModuleFromDB, uploadModulePDF, getModulePdfUrl, getDepartments } from '../firebase-service.js';
+import { getCoursesFromDB, saveCourse, updateCourseDuration, deleteCourseFromDB, saveModule, deleteModuleFromDB, uploadModulePDF, getModulePdfUrl, getDepartments } from '../firebase-service.js';
 
 let _courses         = [];
 let _editQuiz        = [];
@@ -66,102 +66,138 @@ function renderCourseList(root) {
   if (!_courses.length) {
     grid.innerHTML = `<p class="table-cell-meta">Ainda sem formações. Crie a primeira!</p>`;
   } else {
-    _courses.forEach(course => {
-      const isExpanded = _expandedCourses.has(course.id);
-      const modCount   = (course.modules || []).length;
-      const card = document.createElement('div');
-      card.className = 'cm-course-card';
-      const auditMsg = course.editadoPor
-        ? `Editado por ${escHtml(course.editadoPor)}${course.editadoEm ? ' em ' + new Date(course.editadoEm).toLocaleDateString('pt-PT') : ''}`
-        : course.criadoPor
-          ? `Criado por ${escHtml(course.criadoPor)}${course.criadoEm ? ' em ' + new Date(course.criadoEm).toLocaleDateString('pt-PT') : ''}`
-          : '';
-      card.innerHTML = `
-        <div class="cm-course-header cm-course-toggle" data-action="toggle" role="button" tabindex="0"
-             aria-expanded="${isExpanded}" style="cursor:pointer">
-          <div class="cm-course-header-chevron">
-            ${icon('chevronRight', 14, 'var(--ink-3)')}
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-              <div class="cm-course-title">${escHtml(course.title)}</div>
-              <span class="cm-status-badge cm-status-${course.status || 'draft'}">${statusLabel(course.status)}</span>
-              <span class="cm-module-count-badge">${modCount} módulo${modCount !== 1 ? 's' : ''}</span>
-            </div>
-            <div class="cm-course-sub">${escHtml(course.subtitle || '')}</div>
-            ${auditMsg ? `<div class="cm-audit-text">${icon('clock',10,'var(--ink-3)')} ${auditMsg}</div>` : ''}
-          </div>
-          <div class="cm-course-actions" style="flex-shrink:0">
-            <button class="btn-icon" data-action="edit-course" title="Editar formação" aria-label="Editar formação">${icon('edit',14)}</button>
-            <button class="btn-icon danger" data-action="delete-course" title="Eliminar" aria-label="Eliminar formação">${icon('trash',14)}</button>
-          </div>
-        </div>
-        <div class="cm-course-body ${isExpanded ? 'cm-course-body--open' : ''}">
-          <div>
-            <div class="cm-modules-list" id="modules-${course.id}">
-              ${modCount === 0
-                ? `<p class="cm-empty-modules">Ainda sem módulos. Adicione o primeiro!</p>`
-                : (course.modules || []).map((m, i) => moduleRow(course.id, m, i, modCount)).join('')}
-            </div>
-            <button class="btn-sm primary" data-action="add-module" style="margin-top:.75rem">
-              ${icon('plus',12)} Adicionar módulo
-            </button>
-          </div>
-        </div>`;
-
-      // Toggle accordion
-      card.querySelector('[data-action="toggle"]').addEventListener('click', (e) => {
-        // Não propaga se clicou nos botões de editar/eliminar
-        if (e.target.closest('[data-action="edit-course"], [data-action="delete-course"]')) return;
-        const body    = card.querySelector('.cm-course-body');
-        const chevron = card.querySelector('.cm-course-header-chevron');
-        const open    = body.classList.toggle('cm-course-body--open');
-        card.querySelector('[data-action="toggle"]').setAttribute('aria-expanded', open);
-        if (open) { _expandedCourses.add(course.id); } else { _expandedCourses.delete(course.id); }
-      });
-      card.querySelector('[data-action="toggle"]').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
-      });
-
-      card.querySelector('[data-action="edit-course"]').addEventListener('click', (e) => { e.stopPropagation(); openCourseModal(course); });
-      card.querySelector('[data-action="delete-course"]').addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteCourse(course); });
-      card.querySelector('[data-action="add-module"]').addEventListener('click', () => openModuleModal(course, null));
-
-      card.querySelectorAll('[data-action="edit-module"]').forEach(btn =>
-        btn.addEventListener('click', () => {
-          const mod = course.modules.find(m => m.id === btn.dataset.mid);
-          openModuleModal(course, mod);
-        })
-      );
-      card.querySelectorAll('[data-action="delete-module"]').forEach(btn =>
-        btn.addEventListener('click', () => {
-          const mod = course.modules.find(m => m.id === btn.dataset.mid);
-          confirmDeleteModule(course, mod);
-        })
-      );
-      card.querySelectorAll('[data-action="order-up"]').forEach(btn =>
-        btn.addEventListener('click', () => reorderModule(course, btn.dataset.mid, -1))
-      );
-      card.querySelectorAll('[data-action="order-down"]').forEach(btn =>
-        btn.addEventListener('click', () => reorderModule(course, btn.dataset.mid, 1))
-      );
-      card.querySelectorAll('[data-action="upload-pdf"]').forEach(btn =>
-        btn.addEventListener('click', () => openPdfUpload(course.id, btn.dataset.mid))
-      );
-
-      grid.appendChild(card);
-    });
+    _courses.forEach(course => grid.appendChild(buildCourseCard(course)));
   }
 
   document.getElementById('btn-new-course').addEventListener('click', () => openCourseModal(null));
   document.getElementById('btn-help-cm').addEventListener('click', () => openHelpModal());
 }
 
+/**
+ * Constrói o cartão (DOM) de uma formação, com todos os event listeners ligados.
+ * Reutilizado tanto no render inicial como na atualização em-lugar de um cartão.
+ */
+function buildCourseCard(course) {
+  const isExpanded = _expandedCourses.has(course.id);
+  const modCount   = (course.modules || []).length;
+  const courseDuration = sumModulesDuration(course.modules);
+  const card = document.createElement('div');
+  card.className = 'cm-course-card';
+  card.dataset.courseId = course.id;
+  const auditMsg = course.editadoPor
+    ? `Editado por ${escHtml(course.editadoPor)}${course.editadoEm ? ' em ' + new Date(course.editadoEm).toLocaleDateString('pt-PT') : ''}`
+    : course.criadoPor
+      ? `Criado por ${escHtml(course.criadoPor)}${course.criadoEm ? ' em ' + new Date(course.criadoEm).toLocaleDateString('pt-PT') : ''}`
+      : '';
+  card.innerHTML = `
+    <div class="cm-course-header cm-course-toggle" data-action="toggle" role="button" tabindex="0"
+         aria-expanded="${isExpanded}" style="cursor:pointer">
+      <div class="cm-course-header-chevron">
+        ${icon('chevronRight', 14, 'var(--ink-3)')}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <div class="cm-course-title">${escHtml(course.title)}</div>
+          <span class="cm-status-badge cm-status-${course.status || 'draft'}">${statusLabel(course.status)}</span>
+          <span class="cm-module-count-badge">${modCount} módulo${modCount !== 1 ? 's' : ''}</span>
+          ${courseDuration ? `<span class="cm-module-count-badge">${icon('clock',10,'var(--ink-3)')} ${escHtml(courseDuration)}</span>` : ''}
+        </div>
+        <div class="cm-course-sub">${escHtml(course.subtitle || '')}</div>
+        ${auditMsg ? `<div class="cm-audit-text">${icon('clock',10,'var(--ink-3)')} ${auditMsg}</div>` : ''}
+      </div>
+      <div class="cm-course-actions" style="flex-shrink:0">
+        <button class="btn-icon" data-action="edit-course" title="Editar formação" aria-label="Editar formação">${icon('edit',14)}</button>
+        <button class="btn-icon danger" data-action="delete-course" title="Eliminar" aria-label="Eliminar formação">${icon('trash',14)}</button>
+      </div>
+    </div>
+    <div class="cm-course-body ${isExpanded ? 'cm-course-body--open' : ''}">
+      <div>
+        <div class="cm-modules-list" id="modules-${course.id}">
+          ${modCount === 0
+            ? `<p class="cm-empty-modules">Ainda sem módulos. Adicione o primeiro!</p>`
+            : (course.modules || []).map((m, i) => moduleRow(course.id, m, i, modCount)).join('')}
+        </div>
+        <button class="btn-sm primary" data-action="add-module" style="margin-top:.75rem">
+          ${icon('plus',12)} Adicionar módulo
+        </button>
+      </div>
+    </div>`;
+
+  // Toggle accordion
+  card.querySelector('[data-action="toggle"]').addEventListener('click', (e) => {
+    // Não propaga se clicou nos botões de editar/eliminar
+    if (e.target.closest('[data-action="edit-course"], [data-action="delete-course"]')) return;
+    const body    = card.querySelector('.cm-course-body');
+    const open    = body.classList.toggle('cm-course-body--open');
+    card.querySelector('[data-action="toggle"]').setAttribute('aria-expanded', open);
+    if (open) { _expandedCourses.add(course.id); } else { _expandedCourses.delete(course.id); }
+  });
+  card.querySelector('[data-action="toggle"]').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+  });
+
+  card.querySelector('[data-action="edit-course"]').addEventListener('click', (e) => { e.stopPropagation(); openCourseModal(course); });
+  card.querySelector('[data-action="delete-course"]').addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteCourse(course); });
+  card.querySelector('[data-action="add-module"]').addEventListener('click', () => openModuleModal(course, null));
+
+  card.querySelectorAll('[data-action="edit-module"]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const mod = course.modules.find(m => m.id === btn.dataset.mid);
+      openModuleModal(course, mod);
+    })
+  );
+  card.querySelectorAll('[data-action="delete-module"]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const mod = course.modules.find(m => m.id === btn.dataset.mid);
+      confirmDeleteModule(course, mod);
+    })
+  );
+  card.querySelectorAll('[data-action="order-up"]').forEach(btn =>
+    btn.addEventListener('click', () => reorderModule(course, btn.dataset.mid, -1))
+  );
+  card.querySelectorAll('[data-action="order-down"]').forEach(btn =>
+    btn.addEventListener('click', () => reorderModule(course, btn.dataset.mid, 1))
+  );
+  card.querySelectorAll('[data-action="upload-pdf"]').forEach(btn =>
+    btn.addEventListener('click', () => openPdfUpload(course.id, btn.dataset.mid))
+  );
+
+  return card;
+}
+
+/**
+ * Atualiza apenas o cartão de uma formação no DOM (sem re-fetch nem spinner),
+ * reconstruindo-o a partir do estado local `_courses`. Preserva o scroll.
+ */
+function refreshCourseCard(courseId) {
+  const existing = document.querySelector(`.cm-course-card[data-course-id="${CSS.escape(courseId)}"]`);
+  if (!existing) return;
+  const course = _courses.find(c => c.id === courseId);
+  if (!course) { existing.remove(); return; }
+  existing.replaceWith(buildCourseCard(course));
+}
+
+/**
+ * Recalcula a duração da formação a partir dos módulos em memória e,
+ * se mudou, persiste-a (sem ir buscar tudo ao Firestore outra vez).
+ */
+async function persistCourseDuration(course) {
+  const total = sumModulesDuration(course.modules);
+  if ((course.duration || '') === total) return;
+  course.duration = total; // atualiza o estado local
+  try {
+    await updateCourseDuration(course.id, total);
+  } catch (e) {
+    console.warn('[ContentManager] Falha ao gravar duração da formação:', e);
+  }
+}
+
 function moduleRow(courseId, mod, idx, total) {
   return `
     <div class="cm-module-row" data-mid="${mod.id}">
       <span class="cm-module-num">${idx + 1}</span>
-      <span class="cm-module-name">${mod.title}</span>
+      <span class="cm-module-name">${escHtml(mod.title)}</span>
+      <span class="cm-module-duration">${icon('clock', 11, 'var(--ink-3)')} ${mod.duration ? escHtml(mod.duration) : 'sem tempo'}</span>
       <div class="cm-module-actions">
         <button class="btn-icon" data-action="order-up" data-mid="${mod.id}" title="Mover para cima" aria-label="Mover módulo para cima" ${idx === 0 ? 'disabled' : ''}>${icon('chevronUp',13)}</button>
         <button class="btn-icon" data-action="order-down" data-mid="${mod.id}" title="Mover para baixo" aria-label="Mover módulo para baixo" ${idx === total - 1 ? 'disabled' : ''}>${icon('chevronDown',13)}</button>
@@ -195,8 +231,13 @@ async function openCourseModal(course) {
 
         <div class="form-grid-2">
           <div>
-            <label class="form-label">Duração</label>
-            <input id="c-duration" class="form-input" value="${course?.duration || ''}" placeholder="ex.: 2h 30min" />
+            <label class="form-label">Duração (automática)</label>
+            <input id="c-duration" class="form-input" readonly
+                   value="${escHtml(sumModulesDuration(course?.modules) || '—')}"
+                   title="Calculada a partir da soma da duração dos módulos" />
+            <div class="form-hint" style="font-size:11px;color:var(--ink-3);margin-top:4px">
+              Soma automática da duração dos módulos.
+            </div>
           </div>
           <div>
             <label class="form-label">Categoria</label>
@@ -494,7 +535,8 @@ async function openCourseModal(course) {
   document.getElementById('modal-save').addEventListener('click', async () => {
     const title    = document.getElementById('c-title').value.trim();
     const subtitle = document.getElementById('c-subtitle').value.trim();
-    const duration = document.getElementById('c-duration').value.trim();
+    // Duração é sempre calculada a partir dos módulos (não editável manualmente).
+    const duration = sumModulesDuration(course?.modules);
     const category = document.getElementById('c-category').value.trim();
     const passing  = parseInt(document.getElementById('c-passing').value) || 60;
     const dueDate  = document.getElementById('c-due-date').value || '';
@@ -549,7 +591,17 @@ async function openCourseModal(course) {
       clearCoursesCache();
       showToast(`Formação ${isEdit ? 'atualizada' : 'criada'}.`, 'success');
       overlay.remove();
-      await loadAndRenderCourses();
+      // Atualiza o estado local e o DOM apenas do cartão afetado (sem re-fetch).
+      if (isEdit) {
+        Object.assign(course, data); // mantém id e modules
+        refreshCourseCard(courseId);
+      } else {
+        _courses.push({ id: courseId, ...data, modules: [] });
+        const grid = document.getElementById('cm-courses-grid');
+        // Se era a primeira formação, remove a mensagem de "sem formações".
+        if (grid && !grid.querySelector('.cm-course-card')) grid.innerHTML = '';
+        grid?.appendChild(buildCourseCard(_courses[_courses.length - 1]));
+      }
     } catch (e) {
       errEl.textContent = 'Erro: ' + e.message; errEl.style.display = 'block'; btn.disabled = false;
     }
@@ -572,7 +624,12 @@ async function confirmDeleteCourse(course) {
     await deleteCourseFromDB(course.id, course.title, _u?.email, _u?.role);
     clearCoursesCache();
     showToast('Formação eliminada.', 'success');
-    await loadAndRenderCourses();
+    // Remove do estado local e do DOM apenas o cartão afetado.
+    _courses = _courses.filter(c => c.id !== course.id);
+    _expandedCourses.delete(course.id);
+    document.querySelector(`.cm-course-card[data-course-id="${CSS.escape(course.id)}"]`)?.remove();
+    const grid = document.getElementById('cm-courses-grid');
+    if (grid && !_courses.length) grid.innerHTML = `<p class="table-cell-meta">Ainda sem formações. Crie a primeira!</p>`;
   } catch (e) { showToast('Erro ao eliminar: ' + e.message, 'error'); }
 }
 
@@ -666,16 +723,27 @@ function openModuleModal(course, mod) {
     const auditM = isEdit
       ? { editadoPor: u?.email || '', editadoEm: nowM }
       : { criadoPor: u?.email || '', criadoEm: nowM, editadoPor: u?.email || '', editadoEm: nowM };
-    const data     = { title, duration, pages, quiz: _editQuiz, order, content: _editContent, ...auditM };
+    const data     = stripUndefined({ title, duration, pages, quiz: _editQuiz, order, content: _editContent, ...auditM });
 
     const btn = document.getElementById('modal-save');
     btn.disabled = true;
     try {
       await saveModule(course.id, moduleId, data, u?.email, u?.role);
+      // Atualiza o estado local (sem voltar a ir buscar tudo ao Firestore).
+      const localMod = { id: moduleId, ...data };
+      if (!Array.isArray(course.modules)) course.modules = [];
+      if (isEdit) {
+        const mi = course.modules.findIndex(m => m.id === moduleId);
+        if (mi >= 0) course.modules[mi] = localMod; else course.modules.push(localMod);
+      } else {
+        course.modules.push(localMod);
+      }
+      // Recalcula e grava a duração total da formação a partir dos módulos.
+      await persistCourseDuration(course);
       clearCoursesCache();
       showToast(`Módulo ${isEdit ? 'atualizado' : 'criado'}.`, 'success');
       overlay.remove();
-      await loadAndRenderCourses();
+      refreshCourseCard(course.id);
     } catch (e) {
       errEl.textContent = 'Erro: ' + e.message; errEl.style.display = 'block'; btn.disabled = false;
     }
@@ -856,13 +924,16 @@ function renderQuizEditor(root) {
     el.addEventListener('change', () => {
       const i = parseInt(el.dataset.qi);
       const old = _editQuiz[i];
-      _editQuiz[i] = {
+      const next = {
         type: el.value,
         question: old.question || '',
         answer: el.value === 'tf' ? true : 0,
-        options: el.value === 'mc' ? ['', '', '', ''] : undefined,
         explanation: old.explanation || '',
       };
+      // Só as perguntas de múltipla escolha têm 'options'. Nunca definir
+      // 'options: undefined' — o Firestore rejeita valores undefined no setDoc.
+      if (el.value === 'mc') next.options = ['', '', '', ''];
+      _editQuiz[i] = next;
       renderQuizEditor(root);
     });
   });
@@ -977,6 +1048,23 @@ function renderTFOptions(q, i) {
 
 function escHtml(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/**
+ * Remove recursivamente valores `undefined` de objetos/arrays.
+ * O Firestore rejeita `undefined` no setDoc() — este helper garante que
+ * nenhum campo em falta faz rebentar a gravação.
+ */
+function stripUndefined(value) {
+  if (Array.isArray(value)) return value.map(stripUndefined);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== undefined) out[k] = stripUndefined(v);
+    }
+    return out;
+  }
+  return value;
 }
 
 function parseCsvList(value) {
@@ -1108,9 +1196,12 @@ async function confirmDeleteModule(course, mod) {
   try {
     const { user: _mu } = getState();
     await deleteModuleFromDB(course.id, mod.id, mod.title, _mu?.email, _mu?.role);
+    // Atualiza o estado local e recalcula a duração — sem re-fetch total.
+    course.modules = (course.modules || []).filter(m => m.id !== mod.id);
+    await persistCourseDuration(course);
     clearCoursesCache();
     showToast('Módulo eliminado.', 'success');
-    await loadAndRenderCourses();
+    refreshCourseCard(course.id);
   } catch (e) { showToast('Erro ao eliminar: ' + e.message, 'error'); }
 }
 
@@ -1129,8 +1220,9 @@ async function reorderModule(course, moduleId, direction) {
       saveModule(course.id, mods[idx].id, { order: mods[idx].order }),
       saveModule(course.id, mods[newIdx].id, { order: mods[newIdx].order }),
     ]);
+    // `mods` referencia os mesmos objetos de course.modules — ordem já atualizada.
     clearCoursesCache();
-    await loadAndRenderCourses();
+    refreshCourseCard(course.id);
   } catch (e) { showToast('Erro ao reordenar: ' + e.message, 'error'); }
 }
 
